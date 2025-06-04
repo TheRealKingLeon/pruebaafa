@@ -19,7 +19,7 @@ export function Header() {
       {/* Full-width Image Banner */}
       <div className="relative h-[300px] md:h-[400px] w-full group">
         <Image
-          src="https://placehold.co/1920x400.png"
+          src="https://cap.org.ar/wp-content/uploads/2024/02/elpf23_fbshared.jpg"
           alt="AFA eSports Tournament Banner"
           layout="fill"
           objectFit="cover"
