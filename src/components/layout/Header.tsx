@@ -19,25 +19,24 @@ export function Header() {
       {/* Full-width Image Banner */}
       <div className="relative h-[200px] w-full group">
         <Image
-          src="https://placehold.co/1200x200.png"
+          src="https://media.discordapp.net/attachments/495662170743242752/1379967831705124884/KGxN1S2rnpwAAAAASUVORK5CYII.png?ex=68422ab1&is=6840d931&hm=088d3adace3baa475d893201620c0ad2cfc82b06ab33ffef9a6b62694579ffcf&=&format=webp&quality=lossless"
           alt="AFA eSports Tournament Banner"
           layout="fill"
           objectFit="cover"
           priority
           data-ai-hint="esports league banner dark"
         />
-        {/* Gradient overlay removed as logo is removed and new image is self-contained */}
       </div>
 
       {/* Desktop Navigation Bar */}
-      <nav className="bg-background shadow-lg hidden md:block py-3 border-b-2 border-accent">
-        <div className="container mx-auto flex items-center justify-center gap-x-3 lg:gap-x-5">
+      <nav className="bg-background shadow-lg hidden md:block py-2 border-b-2 border-accent">
+        <div className="container mx-auto flex items-center justify-center gap-x-2 lg:gap-x-4">
           {navItems.map((item) => (
             <Button
               key={item.label}
               variant="link"
               asChild
-              className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-3 py-3 transition-colors duration-150"
+              className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-2 py-2 transition-colors duration-150"
             >
               <Link href={item.href}>{item.label}</Link>
             </Button>
