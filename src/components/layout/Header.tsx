@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -5,12 +6,11 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 
 const navItems = [
-  { href: '/', label: 'Inicio' },
-  { href: '/competition', label: 'Competición' },
-  { href: '/participants', label: 'Participantes' },
-  { href: '/results', label: 'Resultados' },
-  { href: '/highlights', label: 'Destacados IA' },
-  { href: '/contact', label: 'Contacto' },
+  { href: '/', label: 'INICIO' },
+  { href: '/results', label: 'RESULTADOS' },
+  { href: '/participants', label: 'EQUIPOS' },
+  { href: '/competition', label: 'PARTIDOS' },
+  { href: '/contact', label: 'CONTACTO' },
 ];
 
 export function Header() {
@@ -29,14 +29,14 @@ export function Header() {
       </div>
 
       {/* Desktop Navigation Bar */}
-      <nav className="bg-background shadow-lg hidden md:block py-2 border-b-2 border-accent">
-        <div className="container mx-auto flex items-center justify-center gap-x-2 lg:gap-x-4">
+      <nav className="bg-background shadow-lg hidden md:block py-2 border-b-2 border-accent border-t-2">
+        <div className="container mx-auto flex items-center justify-center gap-x-3 lg:gap-x-6">
           {navItems.map((item) => (
             <Button
               key={item.label}
               variant="link"
               asChild
-              className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-2 py-2 transition-colors duration-150"
+              className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-3 py-2 transition-colors duration-150"
             >
               <Link href={item.href}>{item.label}</Link>
             </Button>
@@ -45,7 +45,7 @@ export function Header() {
       </nav>
 
       {/* Mobile Navigation Bar - Contains Sheet Trigger */}
-      <nav className="md:hidden bg-background shadow-lg py-3 border-b-2 border-accent">
+      <nav className="md:hidden bg-background shadow-lg py-3 border-b-2 border-accent border-t-2">
         <div className="container mx-auto flex items-center justify-end px-4">
           <Sheet>
             <SheetTrigger asChild>
