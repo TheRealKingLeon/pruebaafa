@@ -1,7 +1,8 @@
+
 import Image from 'next/image';
 import type { Match } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Shield, Versus } from 'lucide-react';
+import { Calendar, Shield, Swords } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -31,7 +32,7 @@ export function PlayoffMatchCard({ match }: PlayoffMatchCardProps) {
             )}
           </div>
           
-          <Versus className="h-8 w-8 text-accent mx-2" />
+          <Swords className="h-8 w-8 text-accent mx-2" />
 
           <div className="flex flex-col items-center w-1/3">
             <Image 
