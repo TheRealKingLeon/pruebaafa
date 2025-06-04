@@ -4,41 +4,87 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+
+const heroSlides = [
+  {
+    title: "¡Gran Apertura del Torneo!",
+    description: "El AFA eSports Showdown ha comenzado. Sigue toda la acción y apoya a tu equipo favorito.",
+    imageUrl: "https://placehold.co/1200x600.png",
+    imageHint: "esports tournament opening",
+    buttonText: "Ver Calendario",
+    buttonLink: "/competition",
+  },
+  {
+    title: "Nuevos Jugadores Estrella",
+    description: "Descubre a las promesas que están revolucionando la escena de FC 25 en Argentina.",
+    imageUrl: "https://placehold.co/1200x600.png",
+    imageHint: "esports player spotlight",
+    buttonText: "Conocer Jugadores",
+    buttonLink: "/participants",
+  },
+  {
+    title: "Resultados de la Semana",
+    description: "No te pierdas ni un detalle de los marcadores y las posiciones actualizadas.",
+    imageUrl: "https://placehold.co/1200x600.png",
+    imageHint: "match results scoreboard",
+    buttonText: "Ver Resultados",
+    buttonLink: "/results",
+  },
+];
 
 export default function HomePage() {
   return (
     <div className="space-y-12">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-primary to-blue-700 text-primary-foreground py-20 rounded-lg overflow-hidden shadow-xl">
-        <div className="absolute inset-0 opacity-20">
-          <Image
-            src="https://placehold.co/1200x400.png"
-            alt="eSports Arena Background"
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint="esports stadium lights"
-          />
-        </div>
-        <div className="container mx-auto px-4 relative z-10 text-center">
-          <h1 className="text-5xl font-bold font-headline mb-4 animate-fade-in-down">
-            AFA eSports Showdown
-          </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto animate-fade-in-up">
-            El torneo oficial de FC 25 de la Asociación del Fútbol Argentino. 64 equipos, un solo campeón. ¡Viví la pasión del fútbol virtual!
-          </p>
-          <div className="space-x-4 animate-fade-in">
-            <Button size="lg" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Link href="/competition">Ver Competición</Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary">
-              <Link href="/participants">Conocer Jugadores</Link>
-            </Button>
-          </div>
-        </div>
+      {/* Hero Section with Carousel */}
+      <section className="relative -mx-4 md:mx-0">
+        <Carousel
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+          className="w-full"
+        >
+          <CarouselContent className="h-[calc(70vh-80px)] md:h-[calc(80vh-100px)]"> {/* Adjusted height */}
+            {heroSlides.map((slide, index) => (
+              <CarouselItem key={index}>
+                <div className="relative h-full w-full rounded-lg overflow-hidden">
+                  <Image
+                    src={slide.imageUrl}
+                    alt={slide.title}
+                    layout="fill"
+                    objectFit="cover"
+                    priority={index === 0}
+                    data-ai-hint={slide.imageHint}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent flex flex-col items-center justify-end text-center p-8 md:p-16 text-primary-foreground">
+                    <h1 className="text-4xl md:text-6xl font-bold font-headline mb-4 animate-fade-in-down">
+                      {slide.title}
+                    </h1>
+                    <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
+                      {slide.description}
+                    </p>
+                    <Button size="lg" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground animate-fade-in">
+                      <Link href={slide.buttonLink}>{slide.buttonText}</Link>
+                    </Button>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 md:h-12 md:w-12 bg-background/50 hover:bg-background/75 text-foreground" />
+          <CarouselNext className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 md:h-12 md:w-12 bg-background/50 hover:bg-background/75 text-foreground" />
+        </Carousel>
       </section>
 
-      {/* How it Works / El Camino Hacia la Gloria */}
+      {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
         <div className="grid md:grid-cols-2 gap-8">
@@ -81,7 +127,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Tournament Overview */}
+      {/* Sobre el Torneo */}
       <section>
         <SectionTitle>Sobre el Torneo</SectionTitle>
         <Card className="shadow-lg">
