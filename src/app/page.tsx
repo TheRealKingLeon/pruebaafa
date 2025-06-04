@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,46 +38,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Tournament Overview */}
+      {/* How it Works / El Camino Hacia la Gloria */}
       <section>
-        <SectionTitle>Sobre el Torneo</SectionTitle>
-        <Card className="shadow-lg">
-          <CardContent className="pt-6 grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <p className="text-lg mb-4">
-                El AFA eSports Showdown es la competencia cumbre de FC 25 en Argentina, donde los mejores jugadores representan a los clubes más emblemáticos del país. Prepárate para vivir la emoción, la habilidad y la estrategia en cada partido.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "Juego: FC 25 (Última Edición)",
-                  "Plataforma: Multiplataforma (Consolas Principales)",
-                  "Formato: Fase de Grupos (Round Robin) y Playoffs",
-                  "Participantes: 64 jugadores representando a clubes de AFA",
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-accent" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-lg overflow-hidden shadow-md">
-              <Image
-                src="https://placehold.co/600x400.png"
-                alt="FC 25 Gameplay"
-                width={600}
-                height={400}
-                className="w-full h-auto object-cover"
-                data-ai-hint="soccer video game"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* How it Works */}
-      <section>
-        <SectionTitle>Formato de la Competición</SectionTitle>
+        <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
         <div className="grid md:grid-cols-2 gap-8">
           <Card className="shadow-lg">
             <CardHeader>
@@ -115,6 +79,43 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* Tournament Overview */}
+      <section>
+        <SectionTitle>Sobre el Torneo</SectionTitle>
+        <Card className="shadow-lg">
+          <CardContent className="pt-6 grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <p className="text-lg mb-4">
+                El AFA eSports Showdown es la competencia cumbre de FC 25 en Argentina, donde los mejores jugadores representan a los clubes más emblemáticos del país. Prepárate para vivir la emoción, la habilidad y la estrategia en cada partido.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Juego: FC 25 (Última Edición)",
+                  "Plataforma: Multiplataforma (Consolas Principales)",
+                  "Formato: Fase de Grupos (Round Robin) y Playoffs",
+                  "Participantes: 64 jugadores representando a clubes de AFA",
+                ].map((item, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-accent" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-lg overflow-hidden shadow-md">
+              <Image
+                src="https://placehold.co/600x400.png"
+                alt="FC 25 Gameplay"
+                width={600}
+                height={400}
+                className="w-full h-auto object-cover"
+                data-ai-hint="soccer video game"
+              />
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Call to Action */}
