@@ -6,46 +6,9 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
 
-const staticHeroData = {
-  title: "AFA eSports Showdown: ¡La Élite Compite!",
-  description: "Vive la emoción del torneo oficial de FC 25 donde los mejores jugadores de Argentina luchan por la gloria.",
-  imageUrl: "https://placehold.co/1600x800.png", // Larger, more impactful image
-  imageHint: "esports championship stadium",
-  buttonText: "Explorar Competición",
-  buttonLink: "/competition",
-};
-
 export default function HomePage() {
   return (
-    <div className="space-y-16"> {/* Increased spacing between sections */}
-      {/* Static Hero Section */}
-      <section className="relative -mx-4 md:mx-0 h-[70vh] md:h-[calc(100vh-120px)] max-h-[700px] rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
-        <Image
-          src={staticHeroData.imageUrl}
-          alt={staticHeroData.title}
-          layout="fill"
-          objectFit="cover"
-          priority
-          data-ai-hint={staticHeroData.imageHint}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
-        <div className="relative z-10 text-center p-8 md:p-16 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-headline mb-6 text-primary-foreground animate-fade-in-down shadow-text-lg">
-            {staticHeroData.title}
-          </h1>
-          <p className="text-lg md:text-xl lg:text-2xl mb-10 text-primary-foreground/90 animate-fade-in-up max-w-3xl mx-auto shadow-text-sm">
-            {staticHeroData.description}
-          </p>
-          <Button 
-            size="lg" 
-            asChild 
-            className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg md:text-xl py-3 px-8 md:py-4 md:px-10 animate-fade-in rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-300"
-          >
-            <Link href={staticHeroData.buttonLink}>{staticHeroData.buttonText}</Link>
-          </Button>
-        </div>
-      </section>
-
+    <div className="space-y-16 pt-8"> {/* Added pt-8 to avoid overlap with sticky header */}
       {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
