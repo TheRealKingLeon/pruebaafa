@@ -17,19 +17,16 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50">
       {/* Full-width Image Banner */}
-      <div className="relative h-[300px] md:h-[400px] w-full group">
+      <div className="relative h-[200px] w-full group">
         <Image
-          src="https://cap.org.ar/wp-content/uploads/2024/02/elpf23_fbshared.jpg"
+          src="https://placehold.co/1200x200.png"
           alt="AFA eSports Tournament Banner"
           layout="fill"
           objectFit="cover"
           priority
-          data-ai-hint="esports tournament banner"
+          data-ai-hint="esports league banner dark"
         />
-        {/* Gradient overlay removed as logo is removed */}
-        {/* <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent flex flex-col items-center justify-center p-4"> */}
-          {/* Logo removed from here */}
-        {/* </div> */}
+        {/* Gradient overlay removed as logo is removed and new image is self-contained */}
       </div>
 
       {/* Desktop Navigation Bar */}
@@ -40,7 +37,7 @@ export function Header() {
               key={item.label}
               variant="link"
               asChild
-              className="text-muted-foreground hover:text-foreground font-bold uppercase text-base lg:text-lg tracking-wider px-3 py-3 transition-colors duration-150"
+              className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-3 py-3 transition-colors duration-150"
             >
               <Link href={item.href}>{item.label}</Link>
             </Button>
@@ -50,8 +47,7 @@ export function Header() {
 
       {/* Mobile Navigation Bar - Contains Sheet Trigger */}
       <nav className="md:hidden bg-background shadow-lg py-3 border-b-2 border-accent">
-        <div className="container mx-auto flex items-center justify-end px-4"> {/* Changed to justify-end */}
-          {/* Simplified text logo removed */}
+        <div className="container mx-auto flex items-center justify-end px-4">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="border-foreground/50">
@@ -61,8 +57,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] bg-background p-0 flex flex-col">
               <div className="p-4 border-b border-border">
-                {/* Logo removed from sheet header */}
-                <span className="text-xl font-bold font-headline text-primary">Menú</span> {/* Added a simple Menu title */}
+                <span className="text-xl font-bold font-headline text-primary">Menú</span>
               </div>
               <nav className="flex flex-col gap-1 p-4 flex-grow">
                 {navItems.map((item) => (
