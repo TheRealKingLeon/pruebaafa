@@ -56,7 +56,7 @@ export function Header() {
                       <Button
                         key={item.label}
                         variant="ghost"
-                        className="w-full justify-start text-gray-300 hover:text-white font-semibold uppercase text-base py-3"
+                        className="w-full justify-start text-gray-300 hover:text-white font-semibold uppercase text-lg py-3" // Increased from text-base
                         asChild
                       >
                         <Link href={item.href}>{item.label}</Link>
@@ -77,7 +77,7 @@ export function Header() {
               key={item.label}
               variant="link" // Use link variant for minimal styling to override
               asChild
-              className="text-gray-400 hover:text-white font-bold uppercase text-xs lg:text-sm tracking-wider px-3 py-3 transition-colors duration-150"
+              className="text-gray-400 hover:text-white font-bold uppercase text-sm lg:text-base tracking-wider px-3 py-3 transition-colors duration-150" // Increased from text-xs lg:text-sm
             >
               <Link href={item.href}>{item.label}</Link>
             </Button>
