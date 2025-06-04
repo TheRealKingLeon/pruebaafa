@@ -1,7 +1,6 @@
 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
@@ -12,38 +11,39 @@ export default function HomePage() {
       {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
-          <CardContent className="pt-6 grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <p className="text-lg mb-4 text-muted-foreground">
-                El AFA eSports Showdown es la competencia cumbre de FC 25 en Argentina, donde los mejores jugadores representan a los clubes más emblemáticos del país. Prepárate para vivir la emoción, la habilidad y la estrategia en cada partido.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "Juego: FC 25 (Última Edición)",
-                  "Plataforma: Multiplataforma (Consolas Principales)",
-                  "Formato: Fase de Grupos (Round Robin) y Playoffs",
-                  "Participantes: 64 jugadores representando a clubes de AFA",
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-primary" />
-                    <span className="text-foreground">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-lg overflow-hidden shadow-md">
-              <Image
-                src="https://placehold.co/600x400.png"
-                alt="FC 25 Gameplay"
-                width={600}
-                height={400}
-                className="w-full h-auto object-cover"
-                data-ai-hint="soccer video game"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="space-y-6">
+            <p className="text-xl font-semibold leading-relaxed text-foreground">
+              ¡La gloria llama a los elegidos! El AFA eSports Showdown es donde la pasión del fútbol argentino trasciende a la arena digital. Los jugadores más brillantes, vistiendo los colores de los clubes más icónicos de AFA, se enfrentan en una contienda épica de pura habilidad, estrategia electrizante y momentos que definirán leyendas. ¡Prepárate para una experiencia inolvidable, donde cada jugada es un paso hacia la inmortalidad!
+            </p>
+            <ul className="space-y-4">
+              {[
+                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "JUEGO ESTELAR:", description: "FC 25 - ¡La Batalla Definitiva por la Gloria Virtual!" },
+                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "PLATAFORMA DE CAMPEONES:", description: "Las Consolas vibran con Talento Puro." },
+                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "FORMATO DE ÉLITE:", description: "Fase de Grupos Explosiva y Playoffs de Infarto hasta la Gran Final." },
+                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "ASPIRANTES AL TRONO:", description: "64 Gladiadores Digitales representando la Pasión de los Clubes AFA." },
+              ].map((item, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  {item.icon}
+                  <div>
+                    <span className="font-bold text-foreground">{item.title}</span>
+                    <p className="text-foreground/90">{item.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-lg overflow-hidden shadow-md">
+            <Image
+              src="https://placehold.co/600x400.png"
+              alt="FC 25 Gameplay Action"
+              width={600}
+              height={400}
+              className="w-full h-auto object-cover"
+              data-ai-hint="esports soccer gameplay"
+            />
+          </div>
+        </div>
       </section>
 
       {/* Call to Action */}
