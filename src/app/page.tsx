@@ -4,92 +4,53 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
+import { CheckCircle } from 'lucide-react';
 
-const heroSlides = [
-  {
-    title: "AFA eSports Showdown: ¡La Élite Compite!",
-    description: "Vive la emoción del torneo oficial de FC 25 donde los mejores jugadores de Argentina luchan por la gloria.",
-    imageUrl: "https://placehold.co/1200x500.png",
-    imageHint: "esports championship game",
-    buttonText: "Explorar Competición",
-    buttonLink: "/competition",
-  },
-  {
-    title: "Descubre los Talentos Argentinos de FC 25",
-    description: "Conoce a las estrellas emergentes y a los veteranos consagrados que representan a sus clubes.",
-    imageUrl: "https://placehold.co/1200x500.png",
-    imageHint: "esports player profile",
-    buttonText: "Ver Participantes",
-    buttonLink: "/participants",
-  },
-  {
-    title: "Sigue Cada Partido y Resultado",
-    description: "No te pierdas ni un gol. Resultados actualizados, estadísticas y el camino a la final.",
-    imageUrl: "https://placehold.co/1200x500.png",
-    imageHint: "live match scoreboard",
-    buttonText: "Consultar Resultados",
-    buttonLink: "/results",
-  },
-];
+const staticHeroData = {
+  title: "AFA eSports Showdown: ¡La Élite Compite!",
+  description: "Vive la emoción del torneo oficial de FC 25 donde los mejores jugadores de Argentina luchan por la gloria.",
+  imageUrl: "https://placehold.co/1600x800.png", // Larger, more impactful image
+  imageHint: "esports championship stadium",
+  buttonText: "Explorar Competición",
+  buttonLink: "/competition",
+};
 
 export default function HomePage() {
   return (
-    <div className="space-y-12">
-      {/* Hero Section with Carousel */}
-      <section className="relative -mx-4 md:mx-0">
-        <Carousel
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          className="w-full"
-          data-testid="hero-carousel"
-        >
-          <CarouselContent className="h-[60vh] md:h-[500px]"> {/* Adjusted height */}
-            {heroSlides.map((slide, index) => (
-              <CarouselItem key={index}>
-                <div className="relative h-full w-full rounded-lg overflow-hidden shadow-xl">
-                  <Image
-                    src={slide.imageUrl}
-                    alt={slide.title}
-                    layout="fill"
-                    objectFit="cover"
-                    priority={index === 0}
-                    data-ai-hint={slide.imageHint}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col items-center justify-end text-center p-8 md:p-16">
-                    <h1 className="text-3xl md:text-5xl font-bold font-headline mb-4 text-primary-foreground animate-fade-in-down">
-                      {slide.title}
-                    </h1>
-                    <p className="text-md md:text-lg mb-8 max-w-2xl mx-auto text-primary-foreground/90 animate-fade-in-up">
-                      {slide.description}
-                    </p>
-                    <Button size="lg" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground animate-fade-in">
-                      <Link href={slide.buttonLink}>{slide.buttonText}</Link>
-                    </Button>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 md:h-12 md:w-12 bg-background/60 hover:bg-background/80 text-foreground" />
-          <CarouselNext className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 md:h-12 md:w-12 bg-background/60 hover:bg-background/80 text-foreground" />
-        </Carousel>
+    <div className="space-y-16"> {/* Increased spacing between sections */}
+      {/* Static Hero Section */}
+      <section className="relative -mx-4 md:mx-0 h-[70vh] md:h-[calc(100vh-120px)] max-h-[700px] rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
+        <Image
+          src={staticHeroData.imageUrl}
+          alt={staticHeroData.title}
+          layout="fill"
+          objectFit="cover"
+          priority
+          data-ai-hint={staticHeroData.imageHint}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
+        <div className="relative z-10 text-center p-8 md:p-16 max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-headline mb-6 text-primary-foreground animate-fade-in-down shadow-text-lg">
+            {staticHeroData.title}
+          </h1>
+          <p className="text-lg md:text-xl lg:text-2xl mb-10 text-primary-foreground/90 animate-fade-in-up max-w-3xl mx-auto shadow-text-sm">
+            {staticHeroData.description}
+          </p>
+          <Button 
+            size="lg" 
+            asChild 
+            className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg md:text-xl py-3 px-8 md:py-4 md:px-10 animate-fade-in rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-300"
+          >
+            <Link href={staticHeroData.buttonLink}>{staticHeroData.buttonText}</Link>
+          </Button>
+        </div>
       </section>
 
       {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
         <div className="grid md:grid-cols-2 gap-8">
-          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary">Fase de Grupos</CardTitle>
             </CardHeader>
@@ -107,7 +68,7 @@ export default function HomePage() {
               />
             </CardContent>
           </Card>
-          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary">Playoffs</CardTitle>
             </CardHeader>
@@ -131,7 +92,7 @@ export default function HomePage() {
       {/* Sobre el Torneo */}
       <section>
         <SectionTitle>Sobre el Torneo</SectionTitle>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
           <CardContent className="pt-6 grid md:grid-cols-2 gap-8 items-center">
             <div>
               <p className="text-lg mb-4 text-muted-foreground">
@@ -172,10 +133,10 @@ export default function HomePage() {
           Sigue todos los resultados, conoce a los participantes y disfruta de los momentos más destacados del torneo.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button size="lg" asChild className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
               <Link href="/results">Ver Resultados</Link>
             </Button>
-            <Button size="lg" asChild variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+            <Button size="lg" asChild variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
               <Link href="/participants">Conocer Jugadores</Link>
             </Button>
         </div>
