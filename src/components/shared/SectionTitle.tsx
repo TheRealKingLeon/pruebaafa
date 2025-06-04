@@ -9,7 +9,7 @@ export function SectionTitle({ as: Comp = 'h2', className, children, ...props }:
   return (
     <Comp
       className={cn(
-        'text-3xl font-bold font-headline text-primary mb-6 pb-2 border-b-2 border-accent',
+        'uppercase tracking-wide text-3xl font-bold font-headline text-primary mb-6 pb-2 border-b-2 border-accent',
         Comp === 'h1' && 'text-4xl',
         Comp === 'h3' && 'text-2xl',
         className
