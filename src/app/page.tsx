@@ -12,49 +12,6 @@ export default function HomePage() {
       {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
-        <div className="grid md:grid-cols-2 gap-8">
-          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">Fase de Grupos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Los 64 equipos se dividen en 8 grupos de 8. En cada grupo, los equipos compiten en un formato de todos contra todos (Round Robin). Los mejores equipos de cada grupo avanzan a la siguiente fase.
-              </p>
-              <Image 
-                src="https://placehold.co/400x250.png" 
-                alt="Diagrama de fase de grupos" 
-                width={400} 
-                height={250} 
-                className="mt-4 rounded-md mx-auto shadow-md"
-                data-ai-hint="tournament groups chart"
-              />
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">Playoffs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Los clasificados de la fase de grupos se enfrentan en un emocionante cuadro de eliminación directa. Cada partido es crucial en el camino hacia la gran final para coronar al campeón del AFA eSports Showdown.
-              </p>
-               <Image 
-                src="https://placehold.co/400x250.png" 
-                alt="Diagrama de bracket de playoffs" 
-                width={400} 
-                height={250} 
-                className="mt-4 rounded-md mx-auto shadow-md"
-                data-ai-hint="tournament bracket chart"
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Sobre el Torneo */}
-      <section>
-        <SectionTitle>Sobre el Torneo</SectionTitle>
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
           <CardContent className="pt-6 grid md:grid-cols-2 gap-8 items-center">
             <div>
