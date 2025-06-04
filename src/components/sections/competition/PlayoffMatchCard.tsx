@@ -32,7 +32,7 @@ export function PlayoffMatchCard({ match }: PlayoffMatchCardProps) {
             )}
           </div>
           
-          <Swords className="h-8 w-8 text-accent mx-2" />
+          <Swords className="h-8 w-8 text-primary mx-2" />
 
           <div className="flex flex-col items-center w-1/3">
             <Image 

@@ -69,7 +69,7 @@ export default function HomePage() {
                   "Participantes: 64 jugadores representando a clubes de AFA",
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-accent" />
+                    <CheckCircle className="h-5 w-5 text-primary" />
                     <span className="text-foreground">{item}</span>
                   </li>
                 ))}
@@ -99,7 +99,7 @@ export default function HomePage() {
             <Button size="lg" asChild className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
               <Link href="/results">Ver Resultados</Link>
             </Button>
-            <Button size="lg" asChild variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
+            <Button size="lg" asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
               <Link href="/participants">Conocer Jugadores</Link>
             </Button>
         </div>

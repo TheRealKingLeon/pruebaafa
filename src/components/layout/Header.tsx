@@ -15,7 +15,7 @@ const navItems = [
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50">
+    <header className="sticky top-0 z-50 flex flex-col">
       {/* Full-width Image Banner */}
       <div className="relative h-[200px] w-full group">
         <Image
@@ -29,7 +29,7 @@ export function Header() {
       </div>
 
       {/* Desktop Navigation Bar */}
-      <nav className="bg-background shadow-lg hidden md:block py-2 border-b-2 border-accent border-t-2">
+      <nav className="bg-background shadow-lg hidden md:block py-2 border-b-2 border-primary border-t-2">
         <div className="container mx-auto flex items-center justify-center gap-x-3 lg:gap-x-6">
           {navItems.map((item) => (
             <Button
@@ -45,7 +45,7 @@ export function Header() {
       </nav>
 
       {/* Mobile Navigation Bar - Contains Sheet Trigger */}
-      <nav className="md:hidden bg-background shadow-lg py-3 border-b-2 border-accent border-t-2">
+      <nav className="md:hidden bg-background shadow-lg py-3 border-b-2 border-primary border-t-2">
         <div className="container mx-auto flex items-center justify-end px-4">
           <Sheet>
             <SheetTrigger asChild>

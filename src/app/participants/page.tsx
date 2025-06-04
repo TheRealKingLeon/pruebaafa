@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -58,8 +59,8 @@ export default function ParticipantsPage() {
                     <li key={team.id}>
                       <button
                         onClick={() => handleSelectTeam(team)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-accent
-                          ${selectedPlayer?.clubId === team.id ? 'bg-accent text-accent-foreground' : 'bg-card hover:bg-secondary/70'}`}
+                        className={`w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover:bg-primary hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary
+                          ${selectedPlayer?.clubId === team.id ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-secondary/70'}`}
                         aria-current={selectedPlayer?.clubId === team.id ? "page" : undefined}
                       >
                         <Image

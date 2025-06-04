@@ -1,3 +1,4 @@
+
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,25 +33,25 @@ export default function ContactPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-start gap-4">
-              <MapPin className="h-8 w-8 text-accent mt-1 flex-shrink-0" />
+              <MapPin className="h-8 w-8 text-primary mt-1 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold">Dirección</h3>
                 <p className="text-muted-foreground">Viamonte 1366, CABA, Argentina</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <Mail className="h-8 w-8 text-accent mt-1 flex-shrink-0" />
+              <Mail className="h-8 w-8 text-primary mt-1 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold">Correo Electrónico</h3>
                 <p className="text-muted-foreground">
-                  <a href="mailto:esports@afa.com.ar" className="hover:text-accent transition-colors">
+                  <a href="mailto:esports@afa.com.ar" className="hover:text-primary transition-colors">
                     esports@afa.com.ar
                   </a>
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <Phone className="h-8 w-8 text-accent mt-1 flex-shrink-0" />
+              <Phone className="h-8 w-8 text-primary mt-1 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold">Teléfono</h3>
                 <p className="text-muted-foreground">+54 11 1234-5678</p>

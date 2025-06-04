@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -37,7 +38,7 @@ export function HighlightReelForm({ onSubmit, isGenerating }: HighlightReelFormP
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
             <CardTitle className="font-headline text-2xl text-primary flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-accent" />
+              <Sparkles className="h-6 w-6 text-primary" />
               Generador de Destacados IA
             </CardTitle>
             <CardDescription>
@@ -78,7 +79,7 @@ export function HighlightReelForm({ onSubmit, isGenerating }: HighlightReelFormP
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isGenerating} className="w-full bg-accent hover:bg-accent/90">
+            <Button type="submit" disabled={isGenerating} className="w-full bg-primary hover:bg-primary/90">
               {isGenerating ? "Generando..." : "Generar Imagen Destacada"}
             </Button>
           </CardFooter>

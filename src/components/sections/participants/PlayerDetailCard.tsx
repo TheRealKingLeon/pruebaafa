@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import type { Player } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +41,7 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
           />
         )}
         <CardTitle className="font-headline text-2xl text-primary">{player.name}</CardTitle>
-        <p className="text-accent font-semibold">{player.gamerTag}</p>
+        <p className="text-primary font-semibold">{player.gamerTag}</p>
         {clubName && <p className="text-sm text-muted-foreground">Representando a {clubName}</p>}
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
