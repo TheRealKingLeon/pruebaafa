@@ -30,7 +30,26 @@ export default function ResultsPage() {
         setAllMatches([]);
         setGroupList([]);
       } else {
-        setAllMatches(result.allMatches);
+        // Sort all matches primarily by date ascending (nulls/TBD last), then group, then matchday
+        const sortedMatches = result.allMatches.sort((a, b) => {
+          const aHasDate = !!a.date;
+          const bHasDate = !!b.date;
+
+          if (aHasDate && !bHasDate) return -1; // a (with date) comes before b (no date)
+          if (!aHasDate && bHasDate) return 1;  // b (with date) comes before a (no date)
+          
+          if (aHasDate && bHasDate) {
+            const dateComparison = new Date(a.date!).getTime() - new Date(b.date!).getTime();
+            if (dateComparison !== 0) return dateComparison; // Sort by date ascending
+          }
+          
+          // If dates are same or both are null, sort by groupName, then matchday
+          const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
+          if (groupCompare !== 0) return groupCompare;
+          
+          return (a.matchday || 0) - (b.matchday || 0);
+        });
+        setAllMatches(sortedMatches);
         setGroupList(result.groupList);
       }
     } catch (err) {
@@ -47,7 +66,7 @@ export default function ResultsPage() {
   }, [fetchData]);
 
   const completedMatches = allMatches?.filter(match => match.status === 'completed') || [];
-  const upcomingAndLiveMatches = allMatches?.filter(match => match.status === 'upcoming' || match.status === 'live' || match.status === 'pending_date') || [];
+  const upcomingAndLiveMatches = allMatches?.filter(match => ['upcoming', 'live', 'pending_date'].includes(match.status)) || [];
   
   const groupsWithCompletedMatches = groupList?.filter(group => 
     completedMatches.some(match => match.groupId === group.id || match.groupName === group.name)
