@@ -92,10 +92,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="space-y-12 pt-8">
+    <div className="space-y-12">
 
       {upcomingLiveMatches.length > 0 && (
-        <section className="mt-8">
+        <section>
           <SectionTitle>PRÓXIMOS ENCUENTROS</SectionTitle>
           <Carousel
             opts={{
@@ -294,7 +294,7 @@ export default function HomePage() {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
             <Button size="lg" asChild className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
-              <Link href="/results">Ver Resultados</Link>
+              <Link href="/results">Ver Partidos</Link>
             </Button>
             <Button size="lg" asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-lg shadow-md transform hover:scale-105 transition-transform duration-300">
               <Link href="/participants">Conocer Jugadores</Link>
