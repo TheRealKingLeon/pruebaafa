@@ -18,6 +18,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect } from 'react';
+import { DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 
 const initialTiebreakerCriteria: Record<TiebreakerCriterionKey, string> = {
@@ -76,7 +77,6 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
             checked={field.value}
             onCheckedChange={(checked) => {
                 field.onChange(checked);
-                // Optional: auto-adjust priorities when enabling/disabling
             }}
             className="mr-2"
           />
@@ -101,9 +101,8 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
         min="0"
         {...register(`tiebreakers.${index}.priority`)}
         className={`w-20 text-center ${errors?.tiebreakers?.[index]?.priority ? 'border-destructive' : ''}`}
-        disabled={!item.enabled} // Use item.enabled directly
+        disabled={!item.enabled}
       />
-      {/* errors?.tiebreakers?.[index]?.priority && <p className="text-xs text-destructive">{errors.tiebreakers[index].priority.message}</p> */}
     </div>
   );
 }
@@ -124,7 +123,7 @@ export function TournamentRulesClient() {
   const { fields, append, remove, move } = useFieldArray({
     control: form.control,
     name: "tiebreakers",
-    keyName: "fieldId" // Use a different key name than 'id' to avoid conflict
+    keyName: "fieldId" 
   });
   
   const sensors = useSensors(
@@ -141,7 +140,6 @@ export function TournamentRulesClient() {
       const newIndex = fields.findIndex((field) => field.id === over.id);
       move(oldIndex, newIndex);
       
-      // After moving, re-assign priorities based on new order for *all* tiebreakers
       const currentTiebreakers = form.getValues('tiebreakers');
       const updatedTiebreakers = currentTiebreakers.map((tb, idx) => ({
         ...tb,
@@ -151,27 +149,22 @@ export function TournamentRulesClient() {
     }
   };
   
-   // Effect to re-validate and re-assign priorities when 'enabled' status changes or fields are reordered
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
       if (name && name.startsWith('tiebreakers') && (type === 'change')) {
         const tiebreakers = form.getValues('tiebreakers');
-        // Filter enabled tiebreakers and sort them by their current visual order (which is their array index)
         const enabledTiebreakers = tiebreakers
-            .map((tb, index) => ({ ...tb, originalIndex: index })) // keep original index to update specific field
+            .map((tb, index) => ({ ...tb, originalIndex: index })) 
             .filter(tb => tb.enabled);
 
-        // Sort enabled tiebreakers by their current 'priority' field value, then by original index as fallback
         enabledTiebreakers.sort((a, b) => {
             if (a.priority !== b.priority) return a.priority - b.priority;
             return a.originalIndex - b.originalIndex;
         });
         
-        // Create a copy of all tiebreakers to update
         const updatedTiebreakers = [...tiebreakers];
         let currentPriority = 1;
 
-        // Update priorities for enabled tiebreakers based on their sorted order
         enabledTiebreakers.forEach(enabledTb => {
             const originalTbIndex = enabledTb.originalIndex;
             if (updatedTiebreakers[originalTbIndex]) {
@@ -179,10 +172,9 @@ export function TournamentRulesClient() {
             }
         });
         
-        // For disabled tiebreakers, set priority to 0 or some non-colliding value (or handle as needed)
         updatedTiebreakers.forEach(tb => {
             if (!tb.enabled) {
-                tb.priority = 0; // Or a large number, or maintain last known priority
+                tb.priority = 0; 
             }
         });
 
@@ -194,11 +186,10 @@ export function TournamentRulesClient() {
 
 
   const onSubmit: SubmitHandler<TournamentRulesFormInput> = async (data) => {
-    // Filter out disabled tiebreakers and re-ensure their priorities are sequential starting from 1
     const activeTiebreakers = data.tiebreakers
         .filter(tb => tb.enabled)
-        .sort((a, b) => a.priority - b.priority) // Sort by priority before sending
-        .map((tb, index) => ({ ...tb, priority: index + 1 })); // Re-assign sequential priority
+        .sort((a, b) => a.priority - b.priority) 
+        .map((tb, index) => ({ ...tb, priority: index + 1 })); 
 
     const payload = {
         ...data,
@@ -213,6 +204,8 @@ export function TournamentRulesClient() {
         title: "Configuración Guardada",
         description: result.message,
       });
+      // Consider closing the dialog here if it's in a dialog context
+      // document.getElementById('closeDialogButtonId')?.click(); // If DialogClose has an id
     } else {
       toast({
         title: "Error al Guardar",
@@ -223,13 +216,12 @@ export function TournamentRulesClient() {
   };
 
   return (
-    <Card className="shadow-lg max-w-3xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl font-headline text-primary">Configuración de Reglas del Torneo</CardTitle>
-        <CardDescription>Define el sistema de puntuación y los criterios de desempate para la fase de grupos.</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <CardContent className="space-y-8">
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-2xl font-headline text-primary">Configuración de Reglas del Torneo</DialogTitle>
+        <DialogDescription>Define el sistema de puntuación y los criterios de desempate para la fase de grupos.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
           {/* Puntos por Partido */}
           <section>
             <h3 className="text-lg font-semibold mb-3 text-foreground">Sistema de Puntuación</h3>
@@ -271,8 +263,8 @@ export function TournamentRulesClient() {
               <SortableContext items={fields.map(field => field.id)} strategy={verticalListSortingStrategy}>
                 {fields.map((field, index) => (
                   <SortableTiebreakerItem
-                    key={field.fieldId} // Use fieldId from useFieldArray
-                    item={field as any} // Cast to any to match SortableTiebreakerItemProps expectation
+                    key={field.fieldId} 
+                    item={field as any} 
                     index={index}
                     control={form.control}
                     register={form.register}
@@ -282,7 +274,6 @@ export function TournamentRulesClient() {
                 ))}
               </SortableContext>
             </DndContext>
-            {/* Display individual tiebreaker errors if any (e.g. if priority not number) */}
             {fields.map((_, index) => (
               form.formState.errors?.tiebreakers?.[index]?.priority && (
                 <p key={`err-${index}`} className="text-sm text-destructive mt-1">
@@ -291,14 +282,18 @@ export function TournamentRulesClient() {
               )
             ))}
           </section>
-        </CardContent>
-        <CardFooter className="border-t pt-6">
-          <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto ml-auto">
+        <DialogFooter className="pt-4 border-t">
+          <DialogClose asChild>
+            <Button type="button" variant="outline">Cancelar</Button>
+          </DialogClose>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
             <Save className="mr-2 h-5 w-5" />
-            {form.formState.isSubmitting ? "Guardando..." : "Guardar Configuración de Reglas"}
+            {form.formState.isSubmitting ? "Guardando..." : "Guardar Configuración"}
           </Button>
-        </CardFooter>
+        </DialogFooter>
       </form>
-    </Card>
+    </>
   );
 }
+
+    

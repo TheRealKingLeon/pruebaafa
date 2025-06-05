@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings } from 'lucide-react'; // Added Settings icon
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings, FileCog } from 'lucide-react'; // Added FileCog
 import type { Team, Group as GroupType } from '@/types';
 import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction } from '../groups/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +21,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { TournamentRulesClient } from './TournamentRulesClient'; // Import the rules client
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { TournamentRulesClient } from './TournamentRulesClient';
+import { Separator } from '@/components/ui/separator';
 
 interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
@@ -47,13 +57,14 @@ export function GroupManagementClient() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    let toastMessageOnError: { title: string, description: string, variant?: "destructive" } | null = null;
     try {
       const { groups: firestoreGroups, teams, error: fetchError } = await getGroupsAndTeamsAction();
       if (fetchError) {
         setError(fetchError);
         setPopulatedGroups([]);
         setAllTeams([]);
-        toast({ title: "Error al Cargar Datos de Grupos", description: fetchError, variant: "destructive" });
+        toastMessageOnError = { title: "Error al Cargar Datos de Grupos", description: fetchError, variant: "destructive" };
         return;
       }
 
@@ -70,9 +81,12 @@ export function GroupManagementClient() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error desconocido al cargar datos de grupos.";
       setError(errorMessage);
-      toast({ title: "Error Inesperado (Grupos)", description: errorMessage, variant: "destructive" });
+      toastMessageOnError = { title: "Error Inesperado (Grupos)", description: errorMessage, variant: "destructive" };
     } finally {
       setIsLoading(false);
+      if (toastMessageOnError) {
+          toast(toastMessageOnError as any);
+      }
     }
   }, [toast]);
 
@@ -154,7 +168,8 @@ export function GroupManagementClient() {
 
     const teamId = e.dataTransfer.getData('teamId');
     const currentSourceGroupId = e.dataTransfer.getData('sourceGroupId');
-    let toastMessage: { title: string, description: string, variant?: "destructive" } | null = null;
+    let optimisticErrorCondition: { title: string, description: string, variant?: "destructive" } | null = null;
+
 
     if (!teamId || !currentSourceGroupId || !targetGroupId ) {
       setDraggedTeam(null); 
@@ -198,7 +213,7 @@ export function GroupManagementClient() {
       const targetGroup = newGroups[targetGroupIndex];
 
       if (targetGroup.teams.find(t => t.id === teamId)) {
-         toastMessage = { title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" };
+         optimisticErrorCondition = { title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" };
          return prevGroups;
       }
 
@@ -214,7 +229,7 @@ export function GroupManagementClient() {
         }
 
         if (!teamToSwapOutClient) {
-          toastMessage = { title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" };
+          optimisticErrorCondition = { title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" };
           return prevGroups;
         }
 
@@ -231,8 +246,8 @@ export function GroupManagementClient() {
       return newGroups;
     });
     
-    if (toastMessage) {
-        toast(toastMessage as any); // Cast because variant is optional and toast expects it.
+    if (optimisticErrorCondition) {
+        toast(optimisticErrorCondition);
         setDraggedTeam(null); 
         setSourceGroupIdForDrag(null);
         setHoveredTeamAsDropTarget(null);
@@ -249,7 +264,7 @@ export function GroupManagementClient() {
     } else {
       toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
     }
-    await fetchData();
+    await fetchData(); // Refetch to ensure consistency after server action
   };
 
   if (isLoading) {
@@ -312,6 +327,17 @@ export function GroupManagementClient() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <FileCog className="mr-2 h-5 w-5" />
+                Configurar Reglas
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <TournamentRulesClient />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
       
@@ -406,17 +432,9 @@ export function GroupManagementClient() {
         Cada zona tiene un máximo de {TEAMS_PER_ZONE_CLIENT} equipos. Las zonas se guardan en Firestore.
         Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
       </p>
-
-      <Separator className="my-8" />
-
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-            <Settings className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold text-foreground">Reglas de la Fase de Grupos</h2>
-        </div>
-        <TournamentRulesClient />
-      </div>
-
+      
     </div>
   );
 }
+
+    
