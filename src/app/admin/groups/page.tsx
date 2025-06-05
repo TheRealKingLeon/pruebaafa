@@ -27,6 +27,8 @@ interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
 }
 
+const TEAMS_PER_ZONE_CLIENT = 4; // Keep client consistent with server
+
 export default function ManageGroupsPage() {
   const [populatedGroups, setPopulatedGroups] = useState<PopulatedGroup[]>([]);
   const [allTeams, setAllTeams] = useState<Team[]>([]);
@@ -38,7 +40,7 @@ export default function ManageGroupsPage() {
 
   // Drag and Drop state
   const [draggedTeam, setDraggedTeam] = useState<Team | null>(null);
-  const [sourceGroupId, setSourceGroupId] = useState<string | null>(null);
+  const [sourceGroupIdForDrag, setSourceGroupIdForDrag] = useState<string | null>(null);
 
 
   const fetchData = useCallback(async () => {
@@ -61,7 +63,7 @@ export default function ManageGroupsPage() {
           .map(teamId => teams.find(t => t.id === teamId))
           .filter(Boolean) as Team[]; 
         return { ...group, id: group.id, name: group.name, zoneId: group.zoneId, teams: groupTeams };
-      }).sort((a,b) => a.name.localeCompare(b.name)); // Ensure groups are sorted by name
+      }).sort((a,b) => a.name.localeCompare(b.name)); 
       setPopulatedGroups(populated);
 
     } catch (err) {
@@ -117,20 +119,18 @@ export default function ManageGroupsPage() {
     e.dataTransfer.setData('teamId', team.id);
     e.dataTransfer.setData('sourceGroupId', currentGroupId);
     setDraggedTeam(team);
-    setSourceGroupId(currentGroupId);
-    // Visual feedback for dragging
+    setSourceGroupIdForDrag(currentGroupId);
     e.currentTarget.style.opacity = '0.5';
   };
 
   const onDragEnd = (e: DragEvent<HTMLLIElement>) => {
-    // Reset visual feedback
     e.currentTarget.style.opacity = '1';
     setDraggedTeam(null);
-    setSourceGroupId(null);
+    setSourceGroupIdForDrag(null);
   };
 
   const onDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault(); 
   };
 
   const onDrop = async (e: DragEvent<HTMLDivElement>, targetGroupId: string) => {
@@ -138,50 +138,102 @@ export default function ManageGroupsPage() {
     const teamId = e.dataTransfer.getData('teamId');
     const currentSourceGroupId = e.dataTransfer.getData('sourceGroupId');
 
-    if (!teamId || !currentSourceGroupId || !targetGroupId || currentSourceGroupId === targetGroupId) {
-      console.log("Drop cancelled: missing data or same group");
+    if (!teamId || !currentSourceGroupId || !targetGroupId ) {
+      console.log("Drop cancelled: missing data");
+      setDraggedTeam(null); // Reset dragged team state
+      setSourceGroupIdForDrag(null);
       return;
     }
-
-    const targetGroup = populatedGroups.find(g => g.id === targetGroupId);
-    if (targetGroup && targetGroup.teams.length >= 4) { // TEAMS_PER_ZONE is 4
-      toast({ title: "Grupo Lleno", description: `El grupo "${targetGroup.name}" ya tiene 4 equipos.`, variant: "destructive" });
-      return;
-    }
-    
-    if (targetGroup && targetGroup.teams.find(t => t.id === teamId)) {
-       toast({ title: "Equipo Duplicado", description: `El equipo ya está en el grupo "${targetGroup.name}".`, variant: "destructive" });
-       return;
+    if (currentSourceGroupId === targetGroupId) {
+        // console.log("Drop cancelled: same group"); // Optional: log if needed
+        setDraggedTeam(null);
+        setSourceGroupIdForDrag(null);
+        return; // Do nothing if dropped on the same group
     }
 
+    const teamToMove = allTeams.find(t => t.id === teamId);
+    if (!teamToMove) {
+        console.error("Dragged team not found in allTeams.");
+        setDraggedTeam(null);
+        setSourceGroupIdForDrag(null);
+        return;
+    }
 
     // Optimistic UI update
     setPopulatedGroups(prevGroups => {
-      const newGroups = prevGroups.map(g => ({...g, teams: [...g.teams]})); // Deep copy for safety
-      
+      const newGroups = prevGroups.map(g => ({
+          ...g,
+          teams: [...g.teams] // Ensure teams array is a new instance
+      }));
+
       const sourceGroupIndex = newGroups.findIndex(g => g.id === currentSourceGroupId);
       const targetGroupIndex = newGroups.findIndex(g => g.id === targetGroupId);
-      const teamToMove = allTeams.find(t => t.id === teamId);
+      
+      if (sourceGroupIndex === -1 || targetGroupIndex === -1) {
+          console.error("Optimistic update failed: source or target group not found.");
+          return prevGroups;
+      }
 
-      if (sourceGroupIndex !== -1 && targetGroupIndex !== -1 && teamToMove) {
-        // Remove from source
-        newGroups[sourceGroupIndex].teams = newGroups[sourceGroupIndex].teams.filter(t => t.id !== teamId);
-        // Add to target
-        newGroups[targetGroupIndex].teams.push(teamToMove);
+      const sourceGroup = newGroups[sourceGroupIndex];
+      const targetGroup = newGroups[targetGroupIndex];
+
+      // Check if team already exists in target group (client-side check)
+      if (targetGroup.teams.find(t => t.id === teamId)) {
+         toast({ title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" });
+         return prevGroups;
+      }
+
+      const targetIsFull = targetGroup.teams.length >= TEAMS_PER_ZONE_CLIENT;
+
+      if (targetIsFull) {
+        // Perform a swap
+        const teamToSwapOut = targetGroup.teams[0]; 
+        if (!teamToSwapOut) {
+          console.error("Optimistic update swap failed: target group full but no team to swap out.");
+          // This scenario should ideally not be reached if targetIsFull and TEAMS_PER_ZONE_CLIENT > 0
+          toast({ title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" });
+          return prevGroups;
+        }
+
+        // 1. Remove teamToMove from sourceGroup.teams
+        sourceGroup.teams = sourceGroup.teams.filter(t => t.id !== teamToMove.id);
+        // 2. Add teamToSwapOut to sourceGroup.teams (if not already there)
+        if (!sourceGroup.teams.find(t => t.id === teamToSwapOut.id)) {
+           sourceGroup.teams.push(teamToSwapOut);
+        }
+
+        // 3. Remove teamToSwapOut from targetGroup.teams
+        targetGroup.teams = targetGroup.teams.filter(t => t.id !== teamToSwapOut.id);
+        // 4. Add teamToMove to targetGroup.teams
+        targetGroup.teams.push(teamToMove);
+        
+        toast({ title: "Intercambio Realizado", description: `"${teamToMove.name}" movido a ${targetGroup.name} e "${teamToSwapOut.name}" movido a ${sourceGroup.name}.`});
+      } else {
+        // Target has space, simple move
+        sourceGroup.teams = sourceGroup.teams.filter(t => t.id !== teamToMove.id);
+        targetGroup.teams.push(teamToMove);
+        // For simple move, server response will provide primary toast.
       }
       return newGroups;
     });
+    
+    setDraggedTeam(null); // Reset dragged team state after optimistic update
+    setSourceGroupIdForDrag(null);
+
 
     // Call server action
     const result = await manualMoveTeamAction({ teamId, sourceGroupId: currentSourceGroupId, targetGroupId });
     if (result.success) {
-      toast({ title: "Equipo Movido", description: result.message });
-      // Optionally, re-fetch data to ensure consistency if optimistic update is complex
-      // await fetchData(); 
+      // Toast for simple move or general success. Swap-specific toast is shown optimistically.
+      if (!(populatedGroups.find(g=>g.id === targetGroupId)?.teams.length === TEAMS_PER_ZONE_CLIENT -1 && populatedGroups.find(g=>g.id === currentSourceGroupId)?.teams.length === 1)){
+         toast({ title: "Movimiento Exitoso", description: result.message });
+      }
+      // Fetch data to ensure consistency, especially if optimistic update was complex or for any edge cases.
+      await fetchData(); 
     } else {
-      toast({ title: "Error al Mover", description: result.message, variant: "destructive" });
-      // Revert optimistic update if server action fails
-      await fetchData(); // Re-fetch to get the correct server state
+      toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
+      // Revert optimistic update if server action fails by re-fetching
+      await fetchData(); 
     }
   };
 
@@ -262,7 +314,7 @@ export default function ManageGroupsPage() {
         </Card>
       )}
 
-      {allTeams.length > 0 && activeGroups.length === 0 && !isLoading && !error && (
+      {allTeams.length > 0 && populatedGroups.every(g => g.teams.length === 0) && !isLoading && !error && (
          <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>No Hay Equipos Asignados a Zonas</CardTitle>
@@ -280,7 +332,7 @@ export default function ManageGroupsPage() {
       )}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {populatedGroups.map((group) => ( // Display all groups for droppability, filter for display if empty later
+        {populatedGroups.map((group) => ( 
           <Card 
             key={group.id} 
             className={`shadow-lg ${group.teams.length === 0 ? 'opacity-70 border-dashed' : ''}`}
@@ -293,15 +345,15 @@ export default function ManageGroupsPage() {
                 <Users className="h-6 w-6" />
                 {group.name}
               </CardTitle>
-              <CardDescription>Equipos asignados: {group.teams.length} / 4</CardDescription>
+              <CardDescription>Equipos asignados: {group.teams.length} / {TEAMS_PER_ZONE_CLIENT}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4 min-h-[150px]"> {/* min-height for drop area */}
+            <CardContent className="pt-4 min-h-[150px]"> 
               {group.teams.length > 0 ? (
                 <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {group.teams.map((team) => (
                     <li 
                       key={team.id} 
-                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors cursor-grab ${draggedTeam?.id === team.id ? 'opacity-50' : ''}`}
+                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors cursor-grab ${draggedTeam?.id === team.id && sourceGroupIdForDrag === group.id ? 'opacity-50 bg-primary/20' : ''}`}
                       draggable="true"
                       onDragStart={(e) => onDragStart(e, team, group.id)}
                       onDragEnd={onDragEnd}
@@ -329,7 +381,8 @@ export default function ManageGroupsPage() {
         ))}
       </div>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Puedes arrastrar y soltar equipos entre las zonas. Cada zona tiene un máximo de 4 equipos. Las zonas se guardan en Firestore.
+        Puedes arrastrar y soltar equipos entre las zonas. Si una zona está llena, se intentará un intercambio con el primer equipo de esa zona.
+        Cada zona tiene un máximo de {TEAMS_PER_ZONE_CLIENT} equipos. Las zonas se guardan en Firestore.
         Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
       </p>
     </div>
