@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, type DragEvent } from 'react';
@@ -54,7 +55,7 @@ export function GroupManagementClient() {
 
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [groupsSeeded, setGroupsSeeded] = useState(false); 
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false); // Renamed from isGeneratingFixture for consistency
   const [tournamentRules, setTournamentRules] = useState<TournamentRules | null>(null);
 
   const fetchInitialData = useCallback(async () => {
@@ -80,15 +81,15 @@ export function GroupManagementClient() {
       }).sort((a,b) => a.name.localeCompare(b.name)); 
       setPopulatedGroups(populated);
 
-      // Fetch tournament rules to get groupsSeeded status
+      // Fetch tournament rules to get groupsSeeded status (locked status)
       const rulesResult = await loadTournamentRulesAction();
       if (rulesResult.success && rulesResult.data) {
         setTournamentRules(rulesResult.data);
         setGroupsSeeded(rulesResult.data.groupsSeeded || false);
       } else {
-        // If rules don't exist or fail to load, assume groups are not seeded
+        // If rules don't exist or fail to load, assume groups are not locked
         setGroupsSeeded(false);
-        console.warn("Could not load tournament rules or no rules found, defaulting groupsSeeded to false.", rulesResult.message);
+        console.warn("Could not load tournament rules or no rules found, defaulting groupsSeeded (locked status) to false.", rulesResult.message);
       }
 
     } catch (err) {
@@ -144,14 +145,13 @@ export function GroupManagementClient() {
     }
   };
 
-  const handleSeedGroups = async () => {
-    setIsSeeding(true);
+  const handleLockGroupsAndGenerateMatches = async () => { // Renamed from handleSeedGroups
+    setIsSeeding(true); // isSeeding indicates the process of locking and generating
     try {
       const result = await seedGroupStageMatchesAction();
       if (result.success) {
-        toast({ title: "Seed Iniciado", description: result.message + (result.matchesGenerated ? ` Partidos generados: ${result.matchesGenerated}.` : '') });
-        setGroupsSeeded(true); // Update local state
-        // Optionally, re-fetch rules to confirm server state if needed, or rely on local update.
+        toast({ title: "Fixture Generado", description: result.message + (result.matchesGenerated ? ` Partidos generados: ${result.matchesGenerated}.` : '') });
+        setGroupsSeeded(true); // Update local state: groups are now locked
         const rulesRefresh = await loadTournamentRulesAction();
         if (rulesRefresh.success && rulesRefresh.data) {
             setTournamentRules(rulesRefresh.data);
@@ -159,19 +159,19 @@ export function GroupManagementClient() {
         }
 
       } else {
-        toast({ title: "Error al Iniciar Seed", description: result.message, variant: "destructive" });
+        toast({ title: "Error al Generar Fixture", description: result.message, variant: "destructive" });
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error desconocido al iniciar el seed.";
-      toast({ title: "Error Inesperado (Seed)", description: errorMessage, variant: "destructive" });
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido al generar fixture.";
+      toast({ title: "Error Inesperado (Fixture)", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSeeding(false);
     }
   };
   
   const onDragStart = (e: DragEvent<HTMLLIElement>, team: Team, currentGroupId: string) => {
-    if (groupsSeeded) {
-        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez iniciado el seed.", variant: "default" });
+    if (groupsSeeded) { // groupsSeeded means locked
+        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez generados los partidos.", variant: "default" });
         e.preventDefault();
         return;
     }
@@ -183,7 +183,7 @@ export function GroupManagementClient() {
   };
 
   const onDragEnd = (e: DragEvent<HTMLLIElement>) => {
-    if (groupsSeeded) return;
+    if (groupsSeeded) return; // groupsSeeded means locked
     e.currentTarget.style.opacity = '1';
     document.querySelectorAll('.team-drop-target-active').forEach(el => el.classList.remove('team-drop-target-active'));
     setDraggedTeam(null);
@@ -192,7 +192,7 @@ export function GroupManagementClient() {
   };
 
   const onDragOver = (e: DragEvent<HTMLDivElement>) => {
-    if (groupsSeeded) {
+    if (groupsSeeded) { // groupsSeeded means locked
         e.dataTransfer.dropEffect = "none";
         return;
     }
@@ -200,7 +200,7 @@ export function GroupManagementClient() {
   };
 
   const onTeamDragEnter = (e: DragEvent<HTMLLIElement>, teamId: string, groupId: string) => {
-    if (groupsSeeded) return;
+    if (groupsSeeded) return; // groupsSeeded means locked
     if (draggedTeam && draggedTeam.id !== teamId && sourceGroupIdForDrag !== groupId) {
       setHoveredTeamAsDropTarget({ teamId, groupId });
       e.currentTarget.classList.add('team-drop-target-active');
@@ -208,14 +208,14 @@ export function GroupManagementClient() {
   };
 
   const onTeamDragLeave = (e: DragEvent<HTMLLIElement>) => {
-    if (groupsSeeded) return;
+    if (groupsSeeded) return; // groupsSeeded means locked
     e.currentTarget.classList.remove('team-drop-target-active');
   };
 
 
   const onDrop = async (e: DragEvent<HTMLDivElement>, targetGroupId: string) => {
-    if (groupsSeeded) {
-        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez iniciado el seed.", variant: "default" });
+    if (groupsSeeded) { // groupsSeeded means locked
+        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez generados los partidos.", variant: "default" });
         e.preventDefault();
         return;
     }
@@ -274,8 +274,7 @@ export function GroupManagementClient() {
          return prevGroups;
       }
 
-      const targetIsFull = targetGroup.teams.length >= TEAMS_PER_ZONE_CLIENT; // Use TEAMS_PER_ZONE_CLIENT (8)
-
+      const targetIsFull = targetGroup.teams.length >= TEAMS_PER_ZONE_CLIENT; 
       if (targetIsFull) {
         let teamToSwapOutClient: Team | undefined;
         if (specificTeamToSwapId) {
@@ -291,7 +290,7 @@ export function GroupManagementClient() {
         }
 
         sourceGroup.teams = sourceGroup.teams.filter(t => t.id !== teamToMove.id);
-        if (!sourceGroup.teams.find(t => t.id === teamToSwapOutClient!.id)) {
+        if (!sourceGroup.teams.find(t => t.id === teamToSwapOutClient!.id)) { 
            sourceGroup.teams.push(teamToSwapOutClient!);
         }
         targetGroup.teams = targetGroup.teams.filter(t => t.id !== teamToSwapOutClient!.id);
@@ -324,21 +323,23 @@ export function GroupManagementClient() {
   const zonesWithEnoughTeamsForSeedCount = populatedGroups.filter(g => g.teams.length >= MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT).length;
   const requiredTeamsForMinZonesToSeed = MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT * MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT;
   
-  const canSeedGroups = !groupsSeeded &&
+  // Condition to enable the "Bloquear y Generar Partidos" button
+  const canLockAndGenerate = !groupsSeeded && // groupsSeeded means "are groups locked?"
     populatedGroups.length >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT &&
     zonesWithEnoughTeamsForSeedCount >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT &&
     allTeams.length >= requiredTeamsForMinZonesToSeed;
   
-  console.log("--- Debugging canSeedGroups (Client) ---");
-  console.log("Current Time:", new Date().toLocaleTimeString());
-  console.log("1. groupsSeeded (from state):", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
-  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${populatedGroups.length >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
-  console.log("3. zonesWithEnoughTeamsForSeedCount (zones with >= MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT teams):", zonesWithEnoughTeamsForSeedCount, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${zonesWithEnoughTeamsForSeedCount >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
-  console.log("4. allTeams.length:", allTeams.length);
-  console.log("5. Required teams for min zones to seed (MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT * MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT):", requiredTeamsForMinZonesToSeed);
-  console.log("6. allTeams.length >= requiredTeamsForMinZonesToSeed?", allTeams.length >= requiredTeamsForMinZonesToSeed);
-  console.log("Final canSeedGroups result:", canSeedGroups);
-  console.log("-----------------------------");
+  // For debugging, can be removed later
+  // console.log("--- Debugging canLockAndGenerate (Client) ---");
+  // console.log("Current Time:", new Date().toLocaleTimeString());
+  // console.log("1. groupsSeeded (estado de bloqueo):", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
+  // console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${populatedGroups.length >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
+  // console.log("3. zonesWithEnoughTeamsForSeedCount (zones with >= MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT teams):", zonesWithEnoughTeamsForSeedCount, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${zonesWithEnoughTeamsForSeedCount >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
+  // console.log("4. allTeams.length:", allTeams.length);
+  // console.log("5. Required teams for min zones to seed (MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT * MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT):", requiredTeamsForMinZonesToSeed);
+  // console.log("6. allTeams.length >= requiredTeamsForMinZonesToSeed?", allTeams.length >= requiredTeamsForMinZonesToSeed);
+  // console.log("Final canLockAndGenerate result:", canLockAndGenerate);
+  // console.log("-----------------------------");
 
 
   if (isLoading) {
@@ -369,7 +370,7 @@ export function GroupManagementClient() {
           outline-offset: 2px;
           background-color: hsla(var(--primary-hsl), 0.1);
         }
-        .groups-locked .cursor-grab {
+        .groups-locked .cursor-grab { /* groupsSeeded class is now groups-locked */
             cursor: not-allowed !important;
         }
       `}</style>
@@ -380,14 +381,14 @@ export function GroupManagementClient() {
             onClick={handleAutoAssign} 
             disabled={isAssigning || allTeams.length === 0 || groupsSeeded} 
             className="w-full sm:w-auto"
-            title={groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar equipos aleatoriamente")}
+            title={groupsSeeded ? "Los grupos ya han sido bloqueados y los partidos generados." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar equipos aleatoriamente")}
           >
             <Shuffle className="mr-2 h-5 w-5" />
             {isAssigning ? "Asignando..." : (allTeams.length === 0 ? "Añade equipos" : "Asignar Auto.")}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" disabled={isResetting} className="w-full sm:w-auto" title="Limpiar todos los equipos de las zonas y resetear el estado de seed">
+              <Button variant="outline" disabled={isResetting} className="w-full sm:w-auto" title="Limpiar todos los equipos de las zonas y resetear el estado de bloqueo">
                 <RotateCcw className="mr-2 h-5 w-5" />
                 {isResetting ? "Limpiando..." : "Reiniciar Grupos"}
               </Button>
@@ -397,7 +398,7 @@ export function GroupManagementClient() {
                 <AlertDialogTitle>¿Estás seguro de limpiar los grupos?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Esta acción desasignará todos los equipos de todas las zonas, eliminará los partidos de grupo generados,
-                  y reseteará el estado de "grupos semeados". Esta acción no se puede deshacer.
+                  y reseteará el estado de "grupos bloqueados". Esta acción no se puede deshacer.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -410,7 +411,7 @@ export function GroupManagementClient() {
           </AlertDialog>
           <Dialog open={isRulesModalOpen} onOpenChange={setIsRulesModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto" disabled={groupsSeeded || isAssigning || isResetting || isSeeding} title={groupsSeeded ? "Las reglas no pueden cambiarse después de semear los grupos." : "Configurar reglas de la fase de grupos"}>
+              <Button variant="outline" className="w-full sm:w-auto" disabled={groupsSeeded || isAssigning || isResetting || isSeeding} title={groupsSeeded ? "Las reglas no pueden cambiarse después de bloquear los grupos y generar partidos." : "Configurar reglas de la fase de grupos"}>
                 <FileCog className="mr-2 h-5 w-5" />
                 Configurar Reglas
               </Button>
@@ -419,24 +420,24 @@ export function GroupManagementClient() {
               <TournamentRulesClient 
                 onSaveSuccess={() => {
                   setIsRulesModalOpen(false);
-                  fetchInitialData(); // Recargar reglas para reflejar cambios si afectan el estado de seed
+                  fetchInitialData(); 
                 }} 
               />
             </DialogContent>
           </Dialog>
           <Button 
-            onClick={handleSeedGroups} 
-            disabled={!canSeedGroups || isSeeding || isAssigning || isResetting} 
+            onClick={handleLockGroupsAndGenerateMatches} 
+            disabled={!canLockAndGenerate || isSeeding || isAssigning || isResetting} 
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
             title={
-                groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." :
-                (!canSeedGroups && populatedGroups.length > 0) ? `Se requieren al menos ${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT} zonas con ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos c/u y ${requiredTeamsForMinZonesToSeed} equipos en total para el seed.` :
+                groupsSeeded ? "Los grupos ya han sido bloqueados y los partidos generados." :
+                (!canLockAndGenerate && populatedGroups.length > 0) ? `Se requieren al menos ${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT} zonas con ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos c/u y ${requiredTeamsForMinZonesToSeed} equipos en total para generar el fixture.` :
                 (populatedGroups.length === 0) ? "Aún no hay zonas de grupos cargadas." :
-                "Iniciar el sembrado de grupos y generar partidos"
+                "Bloquear grupos y generar partidos de la fase de grupos"
             }
           >
             {groupsSeeded ? <Lock className="mr-2 h-5 w-5" /> : <PlaySquare className="mr-2 h-5 w-5" />}
-            {isSeeding ? "Semeando..." : groupsSeeded ? "Grupos Semeados" : "Iniciar Seed"}
+            {isSeeding ? "Generando Partidos..." : groupsSeeded ? "Grupos Bloqueados" : "Bloquear y Generar Partidos"}
           </Button>
         </div>
       </div>
@@ -478,7 +479,7 @@ export function GroupManagementClient() {
       {groupsSeeded && (
         <div className="p-4 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-200 dark:text-blue-800 flex items-center gap-2" role="alert">
             <Lock className="h-5 w-5"/>
-            <span className="font-medium">¡Grupos Semeados y Bloqueados!</span> Ya no se pueden modificar las zonas ni las reglas. Los partidos de la fase de grupos han sido generados.
+            <span className="font-medium">¡Grupos Bloqueados y Partidos Generados!</span> Ya no se pueden modificar las zonas ni las reglas. Los partidos de la fase de grupos han sido generados.
         </div>
       )}
 
@@ -496,7 +497,7 @@ export function GroupManagementClient() {
                 <Users className="h-6 w-6" />
                 {group.name}
               </CardTitle>
-              <CardDescription>Equipos: {group.teams.length} / {TEAMS_PER_ZONE_CLIENT} (Mín. {MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} para seed)</CardDescription>
+              <CardDescription>Equipos: {group.teams.length} / {TEAMS_PER_ZONE_CLIENT} (Mín. {MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} para generar fixture)</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 min-h-[150px]"> 
               {group.teams.length > 0 ? (
@@ -536,8 +537,8 @@ export function GroupManagementClient() {
       </div>
       <p className="text-sm text-muted-foreground italic mt-6">
         {groupsSeeded 
-            ? "Los grupos están semeados y bloqueados. Para realizar cambios, primero se necesitaría 'Reiniciar Grupos', lo cual eliminará los partidos generados."
-            : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena (max ${TEAMS_PER_ZONE_CLIENT} equipos), se intentará un intercambio. Cada zona necesita al menos ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos para ser elegible para el 'seed'.`
+            ? "Los grupos están bloqueados y los partidos generados. Para realizar cambios, primero se necesitaría 'Reiniciar Grupos', lo cual eliminará los partidos generados." 
+            : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena (max ${TEAMS_PER_ZONE_CLIENT} equipos), se intentará un intercambio. Cada zona necesita al menos ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos para ser elegible para la generación de fixture.`
         }
       </p>
       
