@@ -84,3 +84,27 @@ export interface PlayoffFixture {
   createdAt?: any;
   updatedAt?: any;
 }
+
+// Types for Tournament Rules Configuration
+export type TiebreakerCriterionKey = 
+  | 'directResult' 
+  | 'goalDifference' 
+  | 'goalsFor' 
+  | 'matchesWon' 
+  | 'pointsCoefficient' 
+  | 'drawLot';
+
+export interface TiebreakerRule {
+  id: TiebreakerCriterionKey;
+  name: string; // User-friendly name, e.g., "Resultado Directo"
+  priority: number; // Lower number means higher priority
+  enabled: boolean;
+}
+
+export interface TournamentRules {
+  pointsForWin: number;
+  pointsForDraw: number;
+  pointsForLoss: number;
+  tiebreakers: TiebreakerRule[];
+  // Potentially other rules in the future
+}
