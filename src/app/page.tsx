@@ -83,7 +83,7 @@ export default function HomePage() {
               align: "start",
               loop: upcomingLiveMatches.length > 5, 
             }}
-            className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto"
+            className="w-full" // Removed max-w-* and mx-auto
           >
             <CarouselContent className="-ml-2 md:-ml-4">
               {upcomingLiveMatches.map((match) => (
