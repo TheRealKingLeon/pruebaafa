@@ -51,7 +51,7 @@ export default function HomePage() {
           <Carousel
             opts={{
               align: "start",
-              loop: upcomingLiveMatches.length > 5, // Enable loop if more than 5 matches
+              loop: upcomingLiveMatches.length > 5, 
             }}
             className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto"
           >
@@ -128,7 +128,7 @@ export default function HomePage() {
 
       {/* El Camino Hacia la Gloria & Standings */}
       <section>
-        <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-start">
+        <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-center">
           <div className="space-y-6 md:sticky md:top-24">
             <SectionTitle as="h2">EL CAMINO HACIA LA GLORIA</SectionTitle>
             <p className="text-xl font-semibold leading-relaxed text-foreground">
@@ -166,9 +166,9 @@ export default function HomePage() {
                     <TabsTrigger 
                       key={group.id} 
                       value={group.id}
-                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center"
+                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center py-2.5"
                     >
-                      {group.name.replace('Grupo ', 'Zona ')} 
+                      {group.name} 
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -178,23 +178,23 @@ export default function HomePage() {
                       <Table className="min-w-full">
                         <TableHeader className="bg-secondary/30">
                           <TableRow className="border-border">
-                            <TableHead className="px-2 py-3 text-center w-8">Pos</TableHead>
-                            <TableHead className="px-2 py-3 min-w-[150px]">Club</TableHead>
-                            <TableHead className="px-2 py-3 text-center">PTS</TableHead>
-                            <TableHead className="px-2 py-3 text-center">PJ</TableHead>
-                            <TableHead className="px-2 py-3 text-center">G</TableHead>
-                            <TableHead className="px-2 py-3 text-center">E</TableHead>
-                            <TableHead className="px-2 py-3 text-center">P</TableHead>
-                            <TableHead className="px-2 py-3 text-center">GF</TableHead>
-                            <TableHead className="px-2 py-3 text-center">GC</TableHead>
-                            <TableHead className="px-2 py-3 text-center">DG</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center w-8">Pos</TableHead>
+                            <TableHead className="px-2 py-3.5 min-w-[150px]">Club</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">PTS</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">PJ</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">G</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">E</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">P</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">GF</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">GC</TableHead>
+                            <TableHead className="px-2 py-3.5 text-center">DG</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {group.standings.map((entry: StandingEntry) => (
                             <TableRow key={entry.team.id} className="border-border hover:bg-muted/20">
-                              <TableCell className="px-2 py-3 text-center font-medium">{entry.position}</TableCell>
-                              <TableCell className="px-2 py-3">
+                              <TableCell className="px-2 py-3.5 text-center font-medium">{entry.position}</TableCell>
+                              <TableCell className="px-2 py-3.5">
                                 <div className="flex items-center gap-2">
                                   <Image 
                                     src={entry.team.logoUrl} 
@@ -207,14 +207,14 @@ export default function HomePage() {
                                   <span className="text-sm truncate max-w-[120px] sm:max-w-none">{entry.team.name}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="px-2 py-3 text-center font-bold text-primary">{entry.points}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.played}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.won}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.drawn}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.lost}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.goalsFor}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.goalsAgainst}</TableCell>
-                              <TableCell className="px-2 py-3 text-center">{entry.goalDifference}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center font-bold text-primary">{entry.points}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.played}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.won}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.drawn}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.lost}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.goalsFor}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.goalsAgainst}</TableCell>
+                              <TableCell className="px-2 py-3.5 text-center">{entry.goalDifference}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
