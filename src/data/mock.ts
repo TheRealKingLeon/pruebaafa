@@ -69,10 +69,10 @@ const generateMockStandings = (teamsInGroup: Team[], gamesPlayed: number): Stand
 const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 export const mockGroups: Group[] = groupLetters.map((letter, index) => {
   const teamsForGroup = mockTeams.slice(index * 8, (index + 1) * 8);
-  const gamesPlayed = Math.floor(Math.random() * 5) + 3; // Teams play between 3 and 7 games
+  const gamesPlayed = Math.floor(Math.random() * 5) + 3; 
   return {
     id: `group-${letter.toLowerCase()}`,
-    name: `Zona ${letter}`, // Changed from "Grupo" to "Zona"
+    name: `Zona ${letter}`,
     teams: teamsForGroup,
     standings: generateMockStandings(teamsForGroup, gamesPlayed),
   };
@@ -83,11 +83,11 @@ const generateMatch = (
   id: string,
   team1: Team,
   team2: Team,
-  groupName: string,
   status: 'completed' | 'upcoming' | 'live',
   dateOffset: number,
-  matchday: number,
-  roundName?: string
+  matchday?: number, // Optional for playoffs
+  groupName?: string, // Optional for playoffs
+  roundName?: string  // Optional for group stage
 ): Match => {
   const matchDate = new Date();
   matchDate.setDate(matchDate.getDate() + dateOffset);
@@ -107,82 +107,91 @@ const generateMatch = (
     date: matchDate.toISOString(),
     status,
     groupName: groupName || undefined,
-    matchday,
+    matchday: matchday || undefined,
     roundName: roundName || undefined,
   };
 };
 
 export const mockMatches: Match[] = [];
-const numCarouselMatches = 10; // Define how many matches for the carousel
+const numCarouselMatches = 10; 
 for (let i = 0; i < numCarouselMatches; i++) {
-    const groupIndex = i % mockGroups.length; // Cycle through groups
+    const groupIndex = i % mockGroups.length; 
     const team1Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     let team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
-    while (team2Index === team1Index) { // Ensure different teams
+    while (team2Index === team1Index) { 
         team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     }
-    const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming'; // 40% live, 60% upcoming
-    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); // Live matches today, upcoming within 3 days
+    const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming'; 
+    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); 
 
     mockMatches.push(
         generateMatch(
-            (i + 1).toString(), // Match ID
+            `carousel-${i + 1}`, 
             mockGroups[groupIndex].teams[team1Index],
             mockGroups[groupIndex].teams[team2Index],
-            mockGroups[groupIndex].name,
             matchStatus,
             dateOffset,
-            Math.floor(Math.random() * 7) + 1 // Random matchday between 1 and 7
+            Math.floor(Math.random() * 7) + 1,
+            mockGroups[groupIndex].name
         )
     );
 }
 
 // Add more completed matches for the results page
 mockMatches.push(
-  generateMatch('c1', mockTeams[0], mockTeams[1], mockGroups[0].name, 'completed', -2, 1),
-  generateMatch('c2', mockTeams[2], mockTeams[3], mockGroups[0].name, 'completed', -1, 1),
-  generateMatch('c3', mockTeams[8], mockTeams[9], mockGroups[1].name, 'completed', -2, 1),
-  generateMatch('c4', mockTeams[10], mockTeams[11], mockGroups[1].name, 'completed', -1, 1),
-  generateMatch('c5', mockTeams[4], mockTeams[5], mockGroups[0].name, 'completed', -3, 2), // Zona A, Fecha 2
-  generateMatch('c6', mockTeams[6], mockTeams[7], mockGroups[0].name, 'completed', -3, 2), // Zona A, Fecha 2
-  generateMatch('c7', mockTeams[12], mockTeams[13], mockGroups[1].name, 'completed', -4, 2), // Zona B, Fecha 2
-  generateMatch('c8', mockTeams[16], mockTeams[17], mockGroups[2].name, 'completed', -5, 1), // Zona C, Fecha 1
-  generateMatch('c9', mockTeams[18], mockTeams[19], mockGroups[2].name, 'completed', -5, 2), // Zona C, Fecha 2
-  generateMatch('c10', mockTeams[20], mockTeams[21], mockGroups[2].name, 'completed', -5, 3), // Zona C, Fecha 3
-  generateMatch('c11', mockTeams[0], mockTeams[4], mockGroups[0].name, 'completed', -4, 3), // Zona A, Fecha 3
-  generateMatch('c12', mockTeams[1], mockTeams[5], mockGroups[0].name, 'completed', -4, 3), // Zona A, Fecha 3
-  generateMatch('c13', mockTeams[2], mockTeams[6], mockGroups[0].name, 'completed', -5, 4), // Zona A, Fecha 4
-  generateMatch('c14', mockTeams[3], mockTeams[7], mockGroups[0].name, 'completed', -5, 4), // Zona A, Fecha 4
-  generateMatch('c15', mockTeams[8], mockTeams[12], mockGroups[1].name, 'completed', -6, 3), // Zona B, Fecha 3
-  generateMatch('c16', mockTeams[9], mockTeams[13], mockGroups[1].name, 'completed', -6, 3), // Zona B, Fecha 3
-  generateMatch('c17', mockTeams[24], mockTeams[25], mockGroups[3].name, 'completed', -2, 1), // Zona D, Fecha 1
-  generateMatch('c18', mockTeams[26], mockTeams[27], mockGroups[3].name, 'completed', -3, 2)  // Zona D, Fecha 2
+  generateMatch('c1', mockTeams[0], mockTeams[1], 'completed', -2, 1, mockGroups[0].name),
+  generateMatch('c2', mockTeams[2], mockTeams[3], 'completed', -1, 1, mockGroups[0].name),
+  generateMatch('c3', mockTeams[8], mockTeams[9], 'completed', -2, 1, mockGroups[1].name),
+  generateMatch('c4', mockTeams[10], mockTeams[11], 'completed', -1, 1, mockGroups[1].name),
+  generateMatch('c5', mockTeams[4], mockTeams[5], 'completed', -3, 2, mockGroups[0].name), 
+  generateMatch('c6', mockTeams[6], mockTeams[7], 'completed', -3, 2, mockGroups[0].name), 
+  generateMatch('c7', mockTeams[12], mockTeams[13], 'completed', -4, 2, mockGroups[1].name), 
+  generateMatch('c8', mockTeams[16], mockTeams[17], 'completed', -5, 1, mockGroups[2].name), 
+  generateMatch('c9', mockTeams[18], mockTeams[19], 'completed', -5, 2, mockGroups[2].name), 
+  generateMatch('c10', mockTeams[20], mockTeams[21], 'completed', -5, 3, mockGroups[2].name), 
+  generateMatch('c11', mockTeams[0], mockTeams[4], 'completed', -4, 3, mockGroups[0].name), 
+  generateMatch('c12', mockTeams[1], mockTeams[5], 'completed', -4, 3, mockGroups[0].name), 
+  generateMatch('c13', mockTeams[2], mockTeams[6], 'completed', -5, 4, mockGroups[0].name), 
+  generateMatch('c14', mockTeams[3], mockTeams[7], 'completed', -5, 4, mockGroups[0].name), 
+  generateMatch('c15', mockTeams[8], mockTeams[12], 'completed', -6, 3, mockGroups[1].name), 
+  generateMatch('c16', mockTeams[9], mockTeams[13], 'completed', -6, 3, mockGroups[1].name), 
+  generateMatch('c17', mockTeams[24], mockTeams[25], 'completed', -2, 1, mockGroups[3].name), 
+  generateMatch('c18', mockTeams[26], mockTeams[27], 'completed', -3, 2, mockGroups[3].name)  
 );
 
 
-export const mockPlayoffRounds: PlayoffRound[] = [
-  {
-    id: 'quarterfinals',
-    name: 'Cuartos de Final',
-    matches: [
-      generateMatch('p1', mockTeams[0], mockTeams[3], '', 'upcoming', 5, 1, 'Cuartos de Final'),
-      generateMatch('p2', mockTeams[1], mockTeams[2], '', 'upcoming', 5, 1, 'Cuartos de Final'),
-      generateMatch('p3', mockTeams[4], mockTeams[7], '', 'upcoming', 6, 1, 'Cuartos de Final'),
-      generateMatch('p4', mockTeams[5], mockTeams[6], '', 'upcoming', 6, 1, 'Cuartos de Final'),
-    ],
-  },
-  {
-    id: 'semifinals',
-    name: 'Semifinales',
-    matches: [
-      // Example: generateMatch('sf1', TBD_Team1, TBD_Team2, '', 'upcoming', 10, 'Semifinals'),
-    ],
-  },
-  {
-    id: 'final',
-    name: 'Final',
-    matches: [
-      // Example: generateMatch('f1', TBD_Team1, TBD_Team2, '', 'upcoming', 15, 'Final'),
-    ],
-  },
-];
+export const mockPlayoffRounds: PlayoffRound[] = [];
+const playoffStartDateOffset = 7; // Start playoffs 7 days from now
+
+mockGroups.forEach((group, groupIdx) => {
+  // Ensure there are at least 4 teams with standings for playoffs
+  if (group.standings.length < 4) {
+    console.warn(`Group ${group.name} has less than 4 teams, skipping playoff generation for this group.`);
+    return;
+  }
+
+  const qualifiedTeams = group.standings.slice(0, 4).map(s => s.team);
+  if (qualifiedTeams.length < 4) return; // Should not happen if standings check passed
+
+  const teamA = qualifiedTeams[0]; // 1st place
+  const teamB = qualifiedTeams[1]; // 2nd place
+  const teamC = qualifiedTeams[2]; // 3rd place
+  const teamD = qualifiedTeams[3]; // 4th place
+
+  const sf1Ida = generateMatch(`sf1-ida-${group.id}`, teamA, teamD, 'upcoming', playoffStartDateOffset + (groupIdx * 2), undefined, undefined, 'Semifinal - Ida');
+  const sf2Ida = generateMatch(`sf2-ida-${group.id}`, teamB, teamC, 'upcoming', playoffStartDateOffset + (groupIdx * 2), undefined, undefined, 'Semifinal - Ida');
+  
+  const sf1Vuelta = generateMatch(`sf1-vuelta-${group.id}`, teamD, teamA, 'upcoming', playoffStartDateOffset + (groupIdx * 2) + 2, undefined, undefined, 'Semifinal - Vuelta');
+  const sf2Vuelta = generateMatch(`sf2-vuelta-${group.id}`, teamC, teamB, 'upcoming', playoffStartDateOffset + (groupIdx * 2) + 2, undefined, undefined, 'Semifinal - Vuelta');
+
+  // For final, let's assume teamA and teamB advance for simplicity
+  const finalIda = generateMatch(`final-ida-${group.id}`, teamA, teamB, 'upcoming', playoffStartDateOffset + (groupIdx * 2) + 5, undefined, undefined, 'Final - Ida');
+  const finalVuelta = generateMatch(`final-vuelta-${group.id}`, teamB, teamA, 'upcoming', playoffStartDateOffset + (groupIdx * 2) + 7, undefined, undefined, 'Final - Vuelta');
+
+  mockPlayoffRounds.push(
+    { id: `semi-ida-${group.id}`, name: 'Semifinal - Ida', zoneId: group.id, matches: [sf1Ida, sf2Ida] },
+    { id: `semi-vuelta-${group.id}`, name: 'Semifinal - Vuelta', zoneId: group.id, matches: [sf1Vuelta, sf2Vuelta] },
+    { id: `final-ida-${group.id}`, name: 'Final - Ida', zoneId: group.id, matches: [finalIda] },
+    { id: `final-vuelta-${group.id}`, name: 'Final - Vuelta', zoneId: group.id, matches: [finalVuelta] }
+  );
+});

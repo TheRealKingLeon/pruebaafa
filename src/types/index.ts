@@ -50,6 +50,7 @@ export interface Match {
 
 export interface PlayoffRound {
   id: string;
-  name: string; 
+  name: string; // e.g., "Semifinal - Ida", "Final - Vuelta"
+  zoneId: string; // Links to a Group.id, e.g., "group-a"
   matches: Match[];
 }
