@@ -15,9 +15,18 @@ import Link from 'next/link';
 import type { Match, Team } from '@/types';
 import { mockMatches, mockTeams } from '@/data/mock'; // Will be replaced with Firestore actions
 import { updateMatchAction } from '../../actions'; 
-import { matchFormSchema, type EditMatchFormInput } from '../../schemas'; // Import from new schemas file
+import { matchFormSchema, type EditMatchFormInput } from '../../schemas'; 
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 export default function EditMatchPage() {
   const router = useRouter();
@@ -29,9 +38,10 @@ export default function EditMatchPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<EditMatchFormInput>({
+  const form = useForm<EditMatchFormInput>({
     resolver: zodResolver(matchFormSchema),
   });
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch, control } = form;
 
   useEffect(() => {
     if (matchId) {
@@ -121,127 +131,142 @@ export default function EditMatchPage() {
       </div>
 
       <Card className="max-w-2xl mx-auto shadow-lg">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle>Detalles del Partido</CardTitle>
-            <CardDescription>Modifica la información del partido. Los cambios se simularán.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Input type="hidden" {...register("id")} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="team1Id">Equipo 1</Label>
-                {/* TODO: Replace with Select component populated from actual teams from Firestore */}
-                <select
-                  id="team1Id"
-                  {...register("team1Id")}
-                  className={`w-full rounded-md border p-2 ${errors.team1Id ? 'border-destructive' : 'border-input'}`}
-                  disabled // For now, teams are not editable to simplify
-                >
-                  {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-                </select>
-                {errors.team1Id && <p className="text-sm text-destructive">{errors.team1Id.message}</p>}
+        <Form {...form}>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>Detalles del Partido</CardTitle>
+              <CardDescription>Modifica la información del partido. Los cambios se simularán.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Input type="hidden" {...register("id")} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="team1Id">Equipo 1</Label>
+                  {/* TODO: Replace with Select component populated from actual teams from Firestore */}
+                  <select
+                    id="team1Id"
+                    {...register("team1Id")}
+                    className={`w-full rounded-md border p-2 ${errors.team1Id ? 'border-destructive' : 'border-input'}`}
+                    disabled // For now, teams are not editable to simplify
+                  >
+                    {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+                  </select>
+                  {errors.team1Id && <p className="text-sm text-destructive">{errors.team1Id.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="team2Id">Equipo 2</Label>
+                  {/* TODO: Replace with Select component populated from actual teams from Firestore */}
+                   <select
+                    id="team2Id"
+                    {...register("team2Id")}
+                    className={`w-full rounded-md border p-2 ${errors.team2Id ? 'border-destructive' : 'border-input'}`}
+                    disabled // For now, teams are not editable to simplify
+                  >
+                    {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+                  </select>
+                  {errors.team2Id && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
+                </div>
+              </div>
+               {errors.team2Id && errors.team2Id.type === 'custom' && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
+
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="score1">Resultado Equipo 1</Label>
+                  <Input
+                    id="score1"
+                    type="number"
+                    {...register("score1")}
+                    className={errors.score1 ? 'border-destructive' : ''}
+                    disabled={watch("status") !== 'completed'}
+                  />
+                  {errors.score1 && <p className="text-sm text-destructive">{errors.score1.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="score2">Resultado Equipo 2</Label>
+                  <Input
+                    id="score2"
+                    type="number"
+                    {...register("score2")}
+                    className={errors.score2 ? 'border-destructive' : ''}
+                    disabled={watch("status") !== 'completed'}
+                  />
+                  {errors.score2 && <p className="text-sm text-destructive">{errors.score2.message}</p>}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="team2Id">Equipo 2</Label>
-                {/* TODO: Replace with Select component populated from actual teams from Firestore */}
-                 <select
-                  id="team2Id"
-                  {...register("team2Id")}
-                  className={`w-full rounded-md border p-2 ${errors.team2Id ? 'border-destructive' : 'border-input'}`}
-                  disabled // For now, teams are not editable to simplify
-                >
-                  {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-                </select>
-                {errors.team2Id && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
-              </div>
-            </div>
-             {errors.team2Id && errors.team2Id.type === 'custom' && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
-
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="score1">Resultado Equipo 1</Label>
+                <Label htmlFor="date">Fecha y Hora</Label>
                 <Input
-                  id="score1"
-                  type="number"
-                  {...register("score1")}
-                  className={errors.score1 ? 'border-destructive' : ''}
-                  disabled={watch("status") !== 'completed'}
+                  id="date"
+                  type="datetime-local"
+                  {...register("date")}
+                  className={errors.date ? 'border-destructive' : ''}
                 />
-                {errors.score1 && <p className="text-sm text-destructive">{errors.score1.message}</p>}
+                {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
               </div>
 
+              <FormField
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const newStatus = value as 'upcoming' | 'live' | 'completed' | 'pending_date';
+                        if (newStatus !== 'completed') {
+                          setValue("score1", undefined);
+                          setValue("score2", undefined);
+                        }
+                      }}
+                      defaultValue={field.value}
+                      value={field.value} // Ensure value is controlled
+                    >
+                      <FormControl>
+                        <SelectTrigger className={errors.status ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Selecciona un estado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="pending_date">Fecha Pendiente</SelectItem>
+                        <SelectItem value="upcoming">Próximo</SelectItem>
+                        <SelectItem value="live">En Vivo</SelectItem>
+                        <SelectItem value="completed">Finalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <div className="space-y-2">
-                <Label htmlFor="score2">Resultado Equipo 2</Label>
+                <Label htmlFor="streamUrl">URL del Stream (Opcional)</Label>
                 <Input
-                  id="score2"
-                  type="number"
-                  {...register("score2")}
-                  className={errors.score2 ? 'border-destructive' : ''}
-                  disabled={watch("status") !== 'completed'}
+                  id="streamUrl"
+                  type="url"
+                  {...register("streamUrl")}
+                  placeholder="https://twitch.tv/canal_ejemplo"
+                  className={errors.streamUrl ? 'border-destructive' : ''}
                 />
-                {errors.score2 && <p className="text-sm text-destructive">{errors.score2.message}</p>}
+                {errors.streamUrl && <p className="text-sm text-destructive">{errors.streamUrl.message}</p>}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="date">Fecha y Hora</Label>
-              <Input
-                id="date"
-                type="datetime-local"
-                {...register("date")}
-                className={errors.date ? 'border-destructive' : ''}
-              />
-              {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado</Label>
-              <select
-                id="status"
-                {...register("status")}
-                className={`w-full rounded-md border p-2 ${errors.status ? 'border-destructive' : 'border-input'}`}
-                onChange={(e) => {
-                    const newStatus = e.target.value as 'upcoming' | 'live' | 'completed' | 'pending_date';
-                    setValue("status", newStatus);
-                    if (newStatus !== 'completed') {
-                        setValue("score1", undefined);
-                        setValue("score2", undefined);
-                    }
-                }}
-              >
-                <option value="pending_date">Fecha Pendiente</option>
-                <option value="upcoming">Próximo</option>
-                <option value="live">En Vivo</option>
-                <option value="completed">Finalizado</option>
-              </select>
-              {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="streamUrl">URL del Stream (Opcional)</Label>
-              <Input
-                id="streamUrl"
-                type="url"
-                {...register("streamUrl")}
-                placeholder="https://twitch.tv/canal_ejemplo"
-                className={errors.streamUrl ? 'border-destructive' : ''}
-              />
-              {errors.streamUrl && <p className="text-sm text-destructive">{errors.streamUrl.message}</p>}
-            </div>
-
-          </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting}>
-              <Save className="mr-2 h-5 w-5" />
-              {isSubmitting ? "Guardando Cambios..." : "Guardar Cambios"}
-            </Button>
-          </CardFooter>
-        </form>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button type="submit" disabled={isSubmitting}>
+                <Save className="mr-2 h-5 w-5" />
+                {isSubmitting ? "Guardando Cambios..." : "Guardar Cambios"}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
     </div>
   );
 }
+
