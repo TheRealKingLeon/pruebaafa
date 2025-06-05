@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CheckCircle, CalendarDays, Clock, Swords } from 'lucide-react';
+import { CheckCircle, CalendarDays, Clock, Swords, Info } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +16,8 @@ import { es } from 'date-fns/locale';
 export default function HomePage() {
   const upcomingLiveMatches = mockMatches
     .filter(match => match.status === 'upcoming' || match.status === 'live')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Sort by date
-    .slice(0, 5); // Show up to 5 matches
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) 
+    .slice(0, 8); // Mostrar hasta 8 partidos para probar el carrusel
 
   return (
     <div className="space-y-16 pt-8">
@@ -29,16 +29,19 @@ export default function HomePage() {
           <Carousel
             opts={{
               align: "start",
-              loop: upcomingLiveMatches.length > 2, // Loop only if more than 2 items for better UX with fewer items
+              loop: upcomingLiveMatches.length > 3, 
             }}
             className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto"
           >
             <CarouselContent className="-ml-4">
               {upcomingLiveMatches.map((match) => (
-                <CarouselItem key={match.id} className="pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                <CarouselItem key={match.id} className="pl-4 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
                   <div className="p-1">
                     <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 bg-card/90 backdrop-blur-sm overflow-hidden">
-                      <CardContent className="flex flex-col items-center p-4 space-y-3">
+                      <CardContent className="flex flex-col items-center p-4 space-y-2">
+                        {match.groupName && (
+                          <p className="text-xs font-semibold text-primary mb-1 text-center uppercase tracking-wider">{match.groupName}</p>
+                        )}
                         <div className="flex flex-col items-center text-center">
                           <Image
                             src={match.team1.logoUrl}
@@ -48,10 +51,10 @@ export default function HomePage() {
                             className="rounded-full object-contain mb-1 border-2 border-card"
                             data-ai-hint={match.team1.name.toLowerCase().includes("river") || match.team1.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
                           />
-                          <span className="font-semibold text-sm text-card-foreground truncate w-36">{match.team1.name}</span>
+                          <span className="font-semibold text-xs text-card-foreground truncate w-28">{match.team1.name}</span>
                         </div>
 
-                        <Swords className="h-6 w-6 text-primary my-0.5" />
+                        <Swords className="h-5 w-5 text-primary my-0.5" />
 
                         <div className="flex flex-col items-center text-center">
                           <Image
@@ -62,25 +65,25 @@ export default function HomePage() {
                             className="rounded-full object-contain mb-1 border-2 border-card"
                             data-ai-hint={match.team2.name.toLowerCase().includes("river") || match.team2.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
                           />
-                          <span className="font-semibold text-sm text-card-foreground truncate w-36">{match.team2.name}</span>
+                          <span className="font-semibold text-xs text-card-foreground truncate w-28">{match.team2.name}</span>
                         </div>
 
-                        <Separator className="my-2 w-3/4 bg-border/50" />
+                        <Separator className="my-1.5 w-3/4 bg-border/50" />
 
-                        <div className="text-xs text-muted-foreground space-y-1 text-center">
+                        <div className="text-[11px] text-muted-foreground space-y-0.5 text-center">
                             <div className="flex items-center gap-1 justify-center">
-                                <CalendarDays className="h-3.5 w-3.5" />
-                                <span>{format(new Date(match.date), "EEE dd MMM", { locale: es })}</span>
+                                <CalendarDays className="h-3 w-3" />
+                                <span>{format(new Date(match.date), "dd MMM", { locale: es })}</span>
                             </div>
                             <div className="flex items-center gap-1 justify-center">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>{format(new Date(match.date), "HH:mm 'hs'", { locale: es })}</span>
+                                <Clock className="h-3 w-3" />
+                                <span>{format(new Date(match.date), "HH:mm'hs'", { locale: es })}</span>
                             </div>
                         </div>
                         
                         <Badge
                           variant={match.status === 'live' ? 'destructive' : 'secondary'}
-                          className="mt-2 text-xs px-3 py-1 font-bold"
+                          className="mt-1.5 text-[10px] px-2 py-0.5 font-bold"
                         >
                           {match.status === 'live' ? 'EN VIVO' : (match.status === 'upcoming' ? 'PRÓXIMO' : 'FINALIZADO')}
                         </Badge>
@@ -90,8 +93,8 @@ export default function HomePage() {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex text-primary hover:text-primary-foreground hover:bg-primary disabled:opacity-30" />
-            <CarouselNext className="hidden sm:flex text-primary hover:text-primary-foreground hover:bg-primary disabled:opacity-30" />
+            <CarouselPrevious className="hidden sm:flex text-primary hover:text-primary-foreground hover:bg-primary disabled:opacity-30 scale-90" />
+            <CarouselNext className="hidden sm:flex text-primary hover:text-primary-foreground hover:bg-primary disabled:opacity-30 scale-90" />
           </Carousel>
         </section>
       )}
@@ -99,17 +102,17 @@ export default function HomePage() {
       {/* El Camino Hacia la Gloria */}
       <section>
         <SectionTitle>El Camino Hacia la Gloria</SectionTitle>
-        <div className="grid md:grid-cols-2 gap-8 items-center">
+        <div className="grid md:grid-cols-2 gap-10 items-center">
           <div className="space-y-6">
             <p className="text-xl font-semibold leading-relaxed text-foreground">
-              ¡La gloria llama a los elegidos! El AFA eSports Showdown es donde la pasión del fútbol argentino trasciende a la arena digital. Los jugadores más brillantes, vistiendo los colores de los clubes más icónicos de AFA, se enfrentan en una contienda épica de pura habilidad, estrategia electrizante y momentos que definirán leyendas. ¡Prepárate para una experiencia inolvidable, donde cada jugada es un paso hacia la inmortalidad!
+              ¡LA ARENA DIGITAL TE ESPERA! El AFA eSports Showdown es donde la pasión del fútbol argentino se fusiona con la adrenalina de los eSports. Los jugadores más brillantes, defendiendo los colores de los clubes más emblemáticos de AFA, se enfrentan en una batalla épica de habilidad pura, estrategia electrizante y momentos que forjarán leyendas. ¡Prepárate para una experiencia inolvidable donde cada jugada es un paso hacia la inmortalidad!
             </p>
             <ul className="space-y-4">
               {[
-                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "JUEGO ESTELAR:", description: "FC 25 - ¡La Batalla Definitiva por la Gloria Virtual!" },
-                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "PLATAFORMA DE CAMPEONES:", description: "Las Consolas vibran con Talento Puro." },
-                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "FORMATO DE ÉLITE:", description: "Fase de Grupos Explosiva y Playoffs de Infarto hasta la Gran Final." },
-                { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: "ASPIRANTES AL TRONO:", description: "64 Gladiadores Digitales representando la Pasión de los Clubes AFA." },
+                { icon: <Info className="h-6 w-6 text-primary" />, title: "JUEGO ESTELAR:", description: "FC 25 - ¡La Batalla Definitiva por la Gloria Virtual!" },
+                { icon: <Info className="h-6 w-6 text-primary" />, title: "PLATAFORMA DE CAMPEONES:", description: "Las Consolas vibran con Talento Puro." },
+                { icon: <Info className="h-6 w-6 text-primary" />, title: "FORMATO DE ÉLITE:", description: "Fase de Grupos Explosiva y Playoffs de Infarto hasta la Gran Final." },
+                { icon: <Info className="h-6 w-6 text-primary" />, title: "ASPIRANTES AL TRONO:", description: "64 Gladiadores Digitales representando la Pasión de los Clubes AFA." },
               ].map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3">
                   {item.icon}
