@@ -168,8 +168,8 @@ export function GroupManagementClient() {
 
     const teamId = e.dataTransfer.getData('teamId');
     const currentSourceGroupId = e.dataTransfer.getData('sourceGroupId');
+    
     let optimisticErrorCondition: { title: string, description: string, variant?: "destructive" } | null = null;
-
 
     if (!teamId || !currentSourceGroupId || !targetGroupId ) {
       setDraggedTeam(null); 
@@ -206,6 +206,7 @@ export function GroupManagementClient() {
       const targetGroupIndex = newGroups.findIndex(g => g.id === targetGroupId);
       
       if (sourceGroupIndex === -1 || targetGroupIndex === -1) {
+          optimisticErrorCondition = { title: "Error Interno", description: "Grupo de origen o destino no encontrado en el estado local.", variant: "destructive" };
           return prevGroups;
       }
 
@@ -246,17 +247,14 @@ export function GroupManagementClient() {
       return newGroups;
     });
     
-    if (optimisticErrorCondition) {
-        toast(optimisticErrorCondition);
-        setDraggedTeam(null); 
-        setSourceGroupIdForDrag(null);
-        setHoveredTeamAsDropTarget(null);
-        return; 
-    }
-
     setDraggedTeam(null); 
     setSourceGroupIdForDrag(null);
     setHoveredTeamAsDropTarget(null);
+    
+    if (optimisticErrorCondition) {
+        toast(optimisticErrorCondition as any); // Type assertion to satisfy toast
+        return; 
+    }
 
     const result = await manualMoveTeamAction({ teamId, sourceGroupId: currentSourceGroupId, targetGroupId, specificTeamToSwapId });
     if (result.success) {
@@ -334,7 +332,7 @@ export function GroupManagementClient() {
                 Configurar Reglas
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl"> {/* MODAL WIDTH ADJUSTED HERE */}
               <TournamentRulesClient />
             </DialogContent>
           </Dialog>
