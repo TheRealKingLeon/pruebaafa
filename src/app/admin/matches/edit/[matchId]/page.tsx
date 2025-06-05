@@ -8,7 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// Label component is not directly used for FormField, FormLabel is used instead.
+// import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Save, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
@@ -141,40 +142,75 @@ export default function EditMatchPage() {
               <Input type="hidden" {...register("id")} />
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="team1Id">Equipo 1</Label>
-                  {/* TODO: Replace with Select component populated from actual teams from Firestore */}
-                  <select
-                    id="team1Id"
-                    {...register("team1Id")}
-                    className={`w-full rounded-md border p-2 ${errors.team1Id ? 'border-destructive' : 'border-input'}`}
-                    disabled // For now, teams are not editable to simplify
-                  >
-                    {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-                  </select>
-                  {errors.team1Id && <p className="text-sm text-destructive">{errors.team1Id.message}</p>}
-                </div>
+                <FormField
+                  control={control}
+                  name="team1Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Equipo 1</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        defaultValue={field.value}
+                        disabled // For now, teams are not editable to simplify
+                      >
+                        <FormControl>
+                          <SelectTrigger className={errors.team1Id ? 'border-destructive' : ''}>
+                            <SelectValue placeholder="Selecciona Equipo 1" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {mockTeams.map(team => (
+                            <SelectItem key={team.id} value={team.id}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="team2Id">Equipo 2</Label>
-                  {/* TODO: Replace with Select component populated from actual teams from Firestore */}
-                   <select
-                    id="team2Id"
-                    {...register("team2Id")}
-                    className={`w-full rounded-md border p-2 ${errors.team2Id ? 'border-destructive' : 'border-input'}`}
-                    disabled // For now, teams are not editable to simplify
-                  >
-                    {mockTeams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-                  </select>
-                  {errors.team2Id && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
-                </div>
+                <FormField
+                  control={control}
+                  name="team2Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Equipo 2</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        defaultValue={field.value}
+                        disabled // For now, teams are not editable to simplify
+                      >
+                        <FormControl>
+                          <SelectTrigger className={errors.team2Id ? 'border-destructive' : ''}>
+                            <SelectValue placeholder="Selecciona Equipo 2" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {mockTeams.map(team => (
+                            <SelectItem key={team.id} value={team.id}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-               {errors.team2Id && errors.team2Id.type === 'custom' && <p className="text-sm text-destructive">{errors.team2Id.message}</p>}
+               {/* General cross-field validation error, if any, can be displayed here or under a specific field as done by Zod's path */}
+               {/* errors.root?.teamSelection?.message && <p className="text-sm text-destructive">{errors.root.teamSelection.message}</p> */}
+                {/* Or if using path: ["team2Id"] as in schema: */}
+               {/* {errors.team2Id && errors.team2Id.type === 'custom' && <p className="text-sm text-destructive">{errors.team2Id.message}</p>} */}
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="score1">Resultado Equipo 1</Label>
+                  <FormLabel htmlFor="score1">Resultado Equipo 1</FormLabel>
                   <Input
                     id="score1"
                     type="number"
@@ -186,7 +222,7 @@ export default function EditMatchPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="score2">Resultado Equipo 2</Label>
+                  <FormLabel htmlFor="score2">Resultado Equipo 2</FormLabel>
                   <Input
                     id="score2"
                     type="number"
@@ -199,7 +235,7 @@ export default function EditMatchPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="date">Fecha y Hora</Label>
+                <FormLabel htmlFor="date">Fecha y Hora</FormLabel>
                 <Input
                   id="date"
                   type="datetime-local"
@@ -245,7 +281,7 @@ export default function EditMatchPage() {
               />
               
               <div className="space-y-2">
-                <Label htmlFor="streamUrl">URL del Stream (Opcional)</Label>
+                <FormLabel htmlFor="streamUrl">URL del Stream (Opcional)</FormLabel>
                 <Input
                   id="streamUrl"
                   type="url"
@@ -269,4 +305,3 @@ export default function EditMatchPage() {
     </div>
   );
 }
-
