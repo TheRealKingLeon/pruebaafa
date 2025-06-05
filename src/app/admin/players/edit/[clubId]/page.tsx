@@ -15,20 +15,25 @@ import { ArrowLeft, Save, Loader2, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import { mockTeams } from '@/data/mock';
 import type { Team, Player } from '@/types';
-import { updatePlayerAction, playerFormSchema, type UpdatePlayerFormInput } from '../../actions';
+import { updatePlayerAction } from '../../actions';
+import { playerFormSchema, type UpdatePlayerFormInput, type PlayerFormData } from '../../schemas';
+
 
 export default function EditPlayerPage() {
   const router = useRouter();
   const params = useParams();
-  const clubId = params.clubId as string; // Parameter is clubId
+  const clubId = params.clubId as string; 
   
-  const [team, setTeam] = useState<Team | null | undefined>(undefined); // undefined for loading state
+  const [team, setTeam] = useState<Team | null | undefined>(undefined); 
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<UpdatePlayerFormInput>({
-    resolver: zodResolver(playerFormSchema), // Use playerFormSchema for form fields, clubId added before submit
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<PlayerFormData>({
+    resolver: zodResolver(playerFormSchema),
     defaultValues: {
-      // clubId will be set separately
+      name: '',
+      gamerTag: '',
+      imageUrl: '',
+      bio: '',
     }
   });
 
@@ -38,12 +43,11 @@ export default function EditPlayerPage() {
       setTeam(foundTeam || null);
       if (foundTeam) {
         setPlayer(foundTeam.player);
-        reset({ // Reset form with player data
+        reset({ 
           name: foundTeam.player.name,
           gamerTag: foundTeam.player.gamerTag,
           imageUrl: foundTeam.player.imageUrl,
           bio: foundTeam.player.bio,
-          // clubId is not part of playerFormSchema, will be added onSubmit
         });
       } else {
         setPlayer(null);
@@ -51,10 +55,9 @@ export default function EditPlayerPage() {
     }
   }, [clubId, reset]);
 
-  const onSubmit: SubmitHandler<Omit<UpdatePlayerFormInput, 'clubId'>> = async (formData) => {
+  const onSubmit: SubmitHandler<PlayerFormData> = async (formData) => {
     if (!clubId) {
         console.error("Club ID is missing");
-        // Potentially show an error toast to the user
         return;
     }
     const dataWithClubId: UpdatePlayerFormInput = { ...formData, clubId };
