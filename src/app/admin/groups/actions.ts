@@ -115,7 +115,6 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
         currentZoneAssignments.push(teamsToAssign[currentTeamIdx].id);
         currentTeamIdx++;
       }
-      // No need to break early; if teams run out, subsequent zones just won't get assignments
     }
 
     const batch = writeBatch(db);
@@ -184,16 +183,11 @@ export async function manualMoveTeamAction(payload: {
   teamId: string;
   sourceGroupId: string;
   targetGroupId: string;
+  specificTeamToSwapId?: string; // New optional parameter
 }): Promise<{ success: boolean; message: string }> {
-  const { teamId, sourceGroupId, targetGroupId } = payload;
+  const { teamId, sourceGroupId, targetGroupId, specificTeamToSwapId } = payload;
 
   if (sourceGroupId === targetGroupId) {
-    // This check prevents moving a team to the same group it's already in,
-    // which could happen if the client-side check for duplicates fails or is bypassed.
-    // However, the main purpose of a client-side check for `targetGroup.teams.find(t => t.id === teamId)`
-    // is to prevent adding the *same team* multiple times to the *target group* if it's already there.
-    // If sourceGroupId === targetGroupId, it implies an attempt to drag within the same group, which this action isn't designed for.
-    // The client should ideally prevent initiating a drag to the same group.
     return { success: false, message: "No se puede mover un equipo al mismo grupo." };
   }
 
@@ -214,39 +208,49 @@ export async function manualMoveTeamAction(payload: {
         throw new Error(`Grupo de destino (ID: ${targetGroupId}) no encontrado.`);
       }
 
-      const sourceGroupData = sourceGroupSnap.data() as { teamIds: string[] }; // Type assertion for clarity
+      const sourceGroupData = sourceGroupSnap.data() as { teamIds: string[] };
       let newSourceTeamIds = [...sourceGroupData.teamIds];
 
-      const targetGroupData = targetGroupSnap.data() as { teamIds: string[], name: string }; // Type assertion
+      const targetGroupData = targetGroupSnap.data() as { teamIds: string[], name: string };
       let newTargetTeamIds = [...targetGroupData.teamIds];
 
-      // Ensure the team being dragged actually exists in the source group (server-side sanity check)
       if (!newSourceTeamIds.includes(teamId)) {
         throw new Error(`El equipo (ID: ${teamId}) no se encontró en el grupo de origen (ID: ${sourceGroupId}).`);
       }
       
-      // Prevent adding the same team multiple times if it somehow already exists in target
-      // (this should ideally be caught client-side first).
       if (newTargetTeamIds.includes(teamId)) {
+         // This check is if the dragged team (teamId) is ALREADY in the target.
+         // This shouldn't happen if sourceGroupId !== targetGroupId and team is only in source.
+         // But as a safeguard:
         throw new Error(`El equipo (ID: ${teamId}) ya existe en el grupo de destino "${targetGroupData.name}".`);
       }
 
       const isTargetFull = newTargetTeamIds.length >= TEAMS_PER_ZONE;
 
       if (isTargetFull) {
-        // Target is full, perform a swap with the first team in the target group
-        if (newTargetTeamIds.length === 0) { // Should be caught by isTargetFull >= TEAMS_PER_ZONE if TEAMS_PER_ZONE > 0
-            throw new Error(`El grupo de destino "${targetGroupData.name}" está lleno pero no tiene equipos para intercambiar.`);
-        }
-        const teamToMoveBackId = newTargetTeamIds[0]; // Get the first team from target to move to source
+        let teamToMoveBackId: string | undefined = undefined;
 
-        // 1. Update Source Group: Remove dragged team, add teamToMoveBackId
+        // Prioritize specificTeamToSwapId if provided and valid
+        if (specificTeamToSwapId && newTargetTeamIds.includes(specificTeamToSwapId)) {
+          teamToMoveBackId = specificTeamToSwapId;
+        } else if (newTargetTeamIds.length > 0) { 
+          // Fallback: if no specific team or invalid specific team, swap the first one
+          // This handles cases where the drop might be on empty space of a full card
+          teamToMoveBackId = newTargetTeamIds[0];
+        }
+        
+        if (!teamToMoveBackId) {
+            throw new Error(`El grupo de destino "${targetGroupData.name}" está lleno pero no se encontró un equipo para intercambiar (teamToMoveBackId undefined).`);
+        }
+        
+        // Perform SWAP
+        // 1. Update Source Group: Remove dragged team (teamId), add teamToMoveBackId
         newSourceTeamIds = newSourceTeamIds.filter(id => id !== teamId);
         if (!newSourceTeamIds.includes(teamToMoveBackId)) { // Prevent duplicates in source
             newSourceTeamIds.push(teamToMoveBackId);
         }
         
-        // 2. Update Target Group: Remove teamToMoveBackId, add dragged team
+        // 2. Update Target Group: Remove teamToMoveBackId, add dragged team (teamId)
         newTargetTeamIds = newTargetTeamIds.filter(id => id !== teamToMoveBackId);
         // The check for newTargetTeamIds.includes(teamId) was done above, so we can directly push
         newTargetTeamIds.push(teamId);
@@ -264,7 +268,7 @@ export async function manualMoveTeamAction(payload: {
       }
     });
 
-    return { success: true, message: "Movimiento de equipo procesado exitosamente." }; // Generic message for both move/swap
+    return { success: true, message: "Movimiento/intercambio de equipo procesado exitosamente." };
   } catch (error) {
     console.error("Error in manualMoveTeamAction:", error);
     const message = error instanceof Error ? error.message : "Error desconocido al mover/intercambiar el equipo.";
