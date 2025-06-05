@@ -67,3 +67,20 @@ export interface PlayoffRound {
   zoneId: string; 
   matches: Match[]; 
 }
+
+// For admin management of playoff fixtures
+export interface PlayoffFixture {
+  id: string; // Firestore document ID
+  round: string; // e.g., "Cuartos de Final", "Semifinal"
+  matchLabel: string; // e.g., "Partido 1", "CF1"
+  team1Id: string | null;
+  team2Id: string | null;
+  team1Name?: string;
+  team1LogoUrl?: string;
+  team2Name?: string;
+  team2LogoUrl?: string;
+  status: 'pending_teams' | 'upcoming' | 'completed'; // status for the fixture itself
+  winnerId?: string | null;
+  createdAt?: any;
+  updatedAt?: any;
+}

@@ -3,14 +3,15 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Shield, Users, ListOrdered, Settings, LayoutGrid } from 'lucide-react'; // Added LayoutGrid
+import { Shield, Users, Settings, LayoutGrid, Trophy } from 'lucide-react'; // Added LayoutGrid, Trophy
 
 export default function AdminDashboardPage() {
   const managementSections = [
     { title: 'Gestionar Clubes', href: '/admin/clubs', icon: Shield, description: 'Añadir, editar o eliminar clubes participantes.' },
     { title: 'Gestionar Jugadores', href: '/admin/players', icon: Users, description: 'Administrar los perfiles de los jugadores.' },
-    { title: 'Gestionar Grupos', href: '/admin/groups', icon: LayoutGrid, description: 'Configurar las zonas y asignar equipos automáticamente.' },
-    { title: 'Gestionar Partidos', href: '/admin/matches', icon: Settings, description: 'Programar enfrentamientos y actualizar resultados.' },
+    { title: 'Gestionar Fase de Grupos', href: '/admin/groups', icon: LayoutGrid, description: 'Configurar las zonas y asignar equipos.' },
+    { title: 'Gestionar Partidos (Resultados)', href: '/admin/matches', icon: Settings, description: 'Programar enfrentamientos y actualizar resultados (actualmente mock).' },
+    { title: 'Gestionar Playoffs', href: '/admin/playoffs', icon: Trophy, description: 'Generar y visualizar las llaves de Playoffs.' },
   ];
 
   return (
@@ -38,7 +39,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Nota: Las funcionalidades de edición y guardado de datos son prototipos. En una aplicación real, se requeriría integración con una base de datos.
+        Nota: Las funcionalidades de edición y guardado de datos para algunas secciones son prototipos o utilizan datos de demostración.
       </p>
     </div>
   );
