@@ -11,7 +11,7 @@ const navItems = [
   { href: '/participants', label: 'EQUIPOS' },
   { href: '/competition', label: 'PARTIDOS' },
   { href: '/contact', label: 'CONTACTO' },
-  { href: '/admin', label: 'ADMIN', icon: Cog },
+  // { href: '/admin', label: 'ADMIN', icon: Cog }, // Removed Admin link
 ];
 
 export function Header() {
