@@ -30,7 +30,7 @@ export const mockTeams: Team[] = clubNames.map((name, index) => {
   return {
     id: clubId,
     name: name,
-    logoUrl: `https://placehold.co/64x64.png`, // smaller logo for table
+    logoUrl: `https://placehold.co/64x64.png`, 
     player: player,
   };
 });
@@ -41,13 +41,13 @@ const generateMockStandings = (teamsInGroup: Team[], gamesPlayed: number): Stand
     const drawn = Math.floor(Math.random() * (gamesPlayed - won + 1));
     const lost = gamesPlayed - won - drawn;
     const points = (won * 3) + drawn;
-    const goalsFor = Math.floor(Math.random() * 30) + lost; // Ensure GF is at least equal to losses
-    const goalsAgainst = Math.floor(Math.random() * 25) + won; // Ensure GA is at least equal to wins
+    const goalsFor = Math.floor(Math.random() * 30) + lost; 
+    const goalsAgainst = Math.floor(Math.random() * 25) + won; 
     const goalDifference = goalsFor - goalsAgainst;
 
     return {
       team,
-      position: 0, // Will be set after sorting
+      position: 0, 
       points,
       played: gamesPlayed,
       won,
@@ -59,24 +59,22 @@ const generateMockStandings = (teamsInGroup: Team[], gamesPlayed: number): Stand
     };
   });
 
-  // Sort standings: 1. Points (desc), 2. Goal Difference (desc), 3. Goals For (desc)
   standings.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
     return b.goalsFor - a.goalsFor;
   });
 
-  // Assign positions
   return standings.map((entry, index) => ({ ...entry, position: index + 1 }));
 };
 
 const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 export const mockGroups: Group[] = groupLetters.map((letter, index) => {
   const teamsForGroup = mockTeams.slice(index * 8, (index + 1) * 8);
-  const gamesPlayed = Math.floor(Math.random() * 5) + 3; // Each group played 3-7 games
+  const gamesPlayed = Math.floor(Math.random() * 5) + 3; 
   return {
-    id: `group-${letter.toLowerCase()}`,
-    name: `Grupo ${letter}`,
+    id: `group-${letter.toLowerCase()}`, // Keep id as group-x for compatibility if defaultValue in Tabs relies on it
+    name: `Zona ${letter}`, // Display name changed to Zona
     teams: teamsForGroup,
     standings: generateMockStandings(teamsForGroup, gamesPlayed),
   };
@@ -87,7 +85,7 @@ const generateMatch = (
   id: string, 
   team1: Team, 
   team2: Team, 
-  groupName: string, 
+  groupName: string, // This will now be "Zona A", "Zona B" etc.
   status: 'completed' | 'upcoming' | 'live', 
   dateOffset: number,
   matchday: number,
@@ -110,44 +108,42 @@ const generateMatch = (
     score2: status === 'completed' ? Math.floor(Math.random() * 5) : undefined,
     date: matchDate.toISOString(),
     status,
-    groupName: groupName || undefined,
+    groupName: groupName || undefined, // This will be "Zona X"
     matchday,
     roundName: roundName || undefined,
   };
 };
 
-// Generate some upcoming/live matches from the first few groups for the carousel
 export const mockMatches: Match[] = [];
-const numCarouselMatches = 10;
+const numCarouselMatches = 10; 
 for (let i = 0; i < numCarouselMatches; i++) {
-    const groupIndex = i % 3; // Cycle through first 3 groups for variety
+    const groupIndex = i % mockGroups.length; 
     const team1Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     let team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     while (team2Index === team1Index) {
         team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     }
     const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming';
-    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); // Live today, upcoming in next 0-2 days
+    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); 
     
     mockMatches.push(
         generateMatch(
             (i + 1).toString(),
             mockGroups[groupIndex].teams[team1Index],
             mockGroups[groupIndex].teams[team2Index],
-            mockGroups[groupIndex].name,
+            mockGroups[groupIndex].name, // Use the updated group name "Zona X"
             matchStatus,
             dateOffset,
-            Math.floor(Math.random() * 7) + 1 // Random matchday 1-7
+            Math.floor(Math.random() * 7) + 1 
         )
     );
 }
 
-// Add some completed matches for the results page
 mockMatches.push(
-  generateMatch('c1', mockTeams[0], mockTeams[1], 'Grupo A', 'completed', -2, 1),
-  generateMatch('c2', mockTeams[2], mockTeams[3], 'Grupo A', 'completed', -1, 1),
-  generateMatch('c3', mockTeams[8], mockTeams[9], 'Grupo B', 'completed', -2, 1),
-  generateMatch('c4', mockTeams[10], mockTeams[11], 'Grupo B', 'completed', -1, 1)
+  generateMatch('c1', mockTeams[0], mockTeams[1], mockGroups[0].name, 'completed', -2, 1),
+  generateMatch('c2', mockTeams[2], mockTeams[3], mockGroups[0].name, 'completed', -1, 1),
+  generateMatch('c3', mockTeams[8], mockTeams[9], mockGroups[1].name, 'completed', -2, 1),
+  generateMatch('c4', mockTeams[10], mockTeams[11], mockGroups[1].name, 'completed', -1, 1)
 );
 
 

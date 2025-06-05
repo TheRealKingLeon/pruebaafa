@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, CheckCircle, BarChart3 } from 'lucide-react';
+import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, BarChart3 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,8 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { mockMatches, mockGroups } from '@/data/mock'; // mockGroups is now imported
-import type { Match, StandingEntry, Group as GroupType } from '@/types'; // Group renamed to GroupType to avoid conflict
+import { mockMatches, mockGroups } from '@/data/mock'; 
+import type { Match, StandingEntry, Group as GroupType } from '@/types'; 
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
@@ -34,7 +34,7 @@ export default function HomePage() {
         .filter(match => new Date(match.date) >= new Date(currentTimestamp) || match.status === 'live')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     );
-    // Update current time every minute for live status, or less frequently if not needed
+    
     const interval = setInterval(() => {
       setCurrentTimestamp(new Date().toISOString());
     }, 60000);
@@ -51,7 +51,7 @@ export default function HomePage() {
           <Carousel
             opts={{
               align: "start",
-              loop: upcomingLiveMatches.length > 5,
+              loop: upcomingLiveMatches.length > 5, // Enable loop if more than 5 matches
             }}
             className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto"
           >
@@ -129,7 +129,7 @@ export default function HomePage() {
       {/* El Camino Hacia la Gloria & Standings */}
       <section>
         <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-start">
-          <div className="space-y-6 md:sticky md:top-24"> {/* Added sticky positioning for text */}
+          <div className="space-y-6 md:sticky md:top-24">
             <SectionTitle as="h2">EL CAMINO HACIA LA GLORIA</SectionTitle>
             <p className="text-xl font-semibold leading-relaxed text-foreground">
               ¡LA ARENA DIGITAL TE ESPERA! El <span className="text-primary font-bold">AFA eSports Showdown</span> es donde la pasión del fútbol argentino se fusiona con la adrenalina de los eSports. Los jugadores más brillantes, defendiendo los colores de los clubes más emblemáticos de AFA, se enfrentan en una batalla épica de habilidad pura, estrategia electrizante y momentos que forjarán leyendas. ¡Prepárate para una experiencia inolvidable donde cada jugada es un paso hacia la inmortalidad!
@@ -152,7 +152,6 @@ export default function HomePage() {
             </ul>
           </div>
           
-          {/* Standings Table Section */}
           <div className="rounded-lg shadow-lg bg-card text-card-foreground overflow-hidden">
             <CardHeader className="bg-muted/50 p-4 border-b border-border">
               <CardTitle className="text-xl font-headline text-primary flex items-center gap-2">
@@ -167,9 +166,9 @@ export default function HomePage() {
                     <TabsTrigger 
                       key={group.id} 
                       value={group.id}
-                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary"
+                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center"
                     >
-                      {group.name.replace('Grupo ', '')}
+                      {group.name.replace('Grupo ', 'Zona ')} 
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -179,23 +178,23 @@ export default function HomePage() {
                       <Table className="min-w-full">
                         <TableHeader className="bg-secondary/30">
                           <TableRow className="border-border">
-                            <TableHead className="px-2 py-2 text-center w-8">Pos</TableHead>
-                            <TableHead className="px-2 py-2 min-w-[150px]">Club</TableHead>
-                            <TableHead className="px-2 py-2 text-center">PTS</TableHead>
-                            <TableHead className="px-2 py-2 text-center">PJ</TableHead>
-                            <TableHead className="px-2 py-2 text-center">G</TableHead>
-                            <TableHead className="px-2 py-2 text-center">E</TableHead>
-                            <TableHead className="px-2 py-2 text-center">P</TableHead>
-                            <TableHead className="px-2 py-2 text-center">GF</TableHead>
-                            <TableHead className="px-2 py-2 text-center">GC</TableHead>
-                            <TableHead className="px-2 py-2 text-center">DG</TableHead>
+                            <TableHead className="px-2 py-3 text-center w-8">Pos</TableHead>
+                            <TableHead className="px-2 py-3 min-w-[150px]">Club</TableHead>
+                            <TableHead className="px-2 py-3 text-center">PTS</TableHead>
+                            <TableHead className="px-2 py-3 text-center">PJ</TableHead>
+                            <TableHead className="px-2 py-3 text-center">G</TableHead>
+                            <TableHead className="px-2 py-3 text-center">E</TableHead>
+                            <TableHead className="px-2 py-3 text-center">P</TableHead>
+                            <TableHead className="px-2 py-3 text-center">GF</TableHead>
+                            <TableHead className="px-2 py-3 text-center">GC</TableHead>
+                            <TableHead className="px-2 py-3 text-center">DG</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {group.standings.map((entry: StandingEntry) => (
                             <TableRow key={entry.team.id} className="border-border hover:bg-muted/20">
-                              <TableCell className="px-2 py-2 text-center font-medium">{entry.position}</TableCell>
-                              <TableCell className="px-2 py-2">
+                              <TableCell className="px-2 py-3 text-center font-medium">{entry.position}</TableCell>
+                              <TableCell className="px-2 py-3">
                                 <div className="flex items-center gap-2">
                                   <Image 
                                     src={entry.team.logoUrl} 
@@ -208,14 +207,14 @@ export default function HomePage() {
                                   <span className="text-sm truncate max-w-[120px] sm:max-w-none">{entry.team.name}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="px-2 py-2 text-center font-bold text-primary">{entry.points}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.played}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.won}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.drawn}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.lost}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.goalsFor}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.goalsAgainst}</TableCell>
-                              <TableCell className="px-2 py-2 text-center">{entry.goalDifference}</TableCell>
+                              <TableCell className="px-2 py-3 text-center font-bold text-primary">{entry.points}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.played}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.won}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.drawn}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.lost}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.goalsFor}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.goalsAgainst}</TableCell>
+                              <TableCell className="px-2 py-3 text-center">{entry.goalDifference}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
