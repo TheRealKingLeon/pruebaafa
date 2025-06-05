@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteAllPlayersAction } from './actions';
 import { ImportPlayersDialog } from '@/components/admin/players/ImportPlayersDialog';
-
+import { AddPlayerToClubDialog } from '@/components/admin/players/AddPlayerToClubDialog'; // Importar el nuevo diálogo
+import { getAllTeamsAction } from '@/app/admin/matches/actions'; // Para obtener la lista de equipos
 
 interface PlayerWithClubInfo extends Player {
   clubName?: string;
@@ -41,10 +42,12 @@ interface ClubInfo {
 
 export default function ManagePlayersPage() {
   const [playersWithClubData, setPlayersWithClubData] = useState<PlayerWithClubInfo[] | null>(null);
+  const [allTeamsForModal, setAllTeamsForModal] = useState<Team[]>([]); // Para el modal de añadir jugador
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false); // Estado para el nuevo modal
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const fetchPlayersAndClubs = useCallback(async () => {
@@ -54,9 +57,10 @@ export default function ManagePlayersPage() {
       const playersQuery = query(collection(db, "jugadores"), orderBy("name"));
       const clubsQuery = query(collection(db, "equipos"), orderBy("name"));
 
-      const [playersSnapshot, clubsSnapshot] = await Promise.all([
+      const [playersSnapshot, clubsSnapshot, allTeamsResult] = await Promise.all([
         getDocs(playersQuery),
-        getDocs(clubsQuery)
+        getDocs(clubsQuery),
+        getAllTeamsAction() // Obtener todos los equipos para el modal
       ]);
 
       const playersData = playersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
@@ -77,6 +81,13 @@ export default function ManagePlayersPage() {
         };
       });
       setPlayersWithClubData(populatedPlayers);
+
+      if (allTeamsResult.teams) {
+        setAllTeamsForModal(allTeamsResult.teams);
+      } else {
+        console.error("Error fetching teams for add player modal:", allTeamsResult.error);
+        toast({ title: "Error al Cargar Equipos (Modal)", description: allTeamsResult.error, variant: "destructive" });
+      }
 
     } catch (err) {
       console.error("Error fetching players/clubs: ", err);
@@ -120,6 +131,11 @@ export default function ManagePlayersPage() {
     setIsImportModalOpen(false); 
   };
 
+  const handleAddPlayerSuccess = () => {
+    fetchPlayersAndClubs();
+    setIsAddPlayerModalOpen(false);
+  }
+
 
   if (isLoading) {
     return (
@@ -146,6 +162,9 @@ export default function ManagePlayersPage() {
       <div className="flex flex-wrap justify-between items-center gap-2">
         <SectionTitle>Gestionar Jugadores</SectionTitle>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setIsAddPlayerModalOpen(true)} variant="default">
+            <UserPlus className="mr-2 h-5 w-5" /> Añadir Nuevo Jugador
+          </Button>
           <Button onClick={() => setIsImportModalOpen(true)} variant="outline">
             <UploadCloud className="mr-2 h-5 w-5" /> Importar Jugadores desde CSV
           </Button>
@@ -172,11 +191,6 @@ export default function ManagePlayersPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button asChild variant="secondary">
-            <Link href="/admin/clubs">
-              <UserPlus className="mr-2 h-5 w-5" /> Asignar/Crear Jugador
-            </Link>
-          </Button>
         </div>
       </div>
       
@@ -191,7 +205,7 @@ export default function ManagePlayersPage() {
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No hay jugadores para mostrar.</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Puedes empezar importando desde un archivo CSV o asignando un jugador a un club.
+                Puedes empezar añadiendo un nuevo jugador o importando desde un archivo CSV.
               </p>
             </div>
           </CardContent>
@@ -200,7 +214,7 @@ export default function ManagePlayersPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Listado de Jugadores ({playersWithClubData.length})</CardTitle>
-            <CardDescription>Jugadores cargados desde la colección "jugadores". Para añadir un jugador a un club que aún no tiene, usa el botón "Asignar/Crear Jugador".</CardDescription>
+            <CardDescription>Jugadores cargados desde la colección "jugadores". Usa el botón "Editar" para modificar los datos del jugador de un club específico (te llevará a la página de edición del jugador para ese club).</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -259,13 +273,20 @@ export default function ManagePlayersPage() {
         </Card>
       )}
       <p className="text-sm text-muted-foreground italic mt-6">
-        La información de los jugadores se guarda en la base de datos. El botón "Asignar/Crear Jugador" te llevará a la gestión de clubes para que puedas seleccionar uno y luego gestionar su jugador.
+        Para editar el jugador de un club específico, puedes usar el botón "Editar" en la tabla o ir a "Gestionar Clubes" y usar el icono <UserCircle className="inline h-4 w-4" />.
       </p>
       <ImportPlayersDialog 
         isOpen={isImportModalOpen} 
         onOpenChange={setIsImportModalOpen} 
         onImportSuccess={handleImportSuccess} 
       />
+      <AddPlayerToClubDialog
+        isOpen={isAddPlayerModalOpen}
+        onOpenChange={setIsAddPlayerModalOpen}
+        allTeams={allTeamsForModal}
+        onPlayerAddSuccess={handleAddPlayerSuccess}
+      />
     </div>
   );
 }
+
