@@ -203,7 +203,7 @@ export default function HomePage() {
                   ))}
                 </TabsList>
                 {pageGroups.map((group: GroupType) => (
-                  <TabsContent key={group.id} value={group.id} className="m-0">
+                  <TabsContent key={group.id} value={group.id} className="mt-6">
                     <div className="overflow-x-auto">
                       <Table className="min-w-full">
                         <TableHeader className="bg-secondary/30">
@@ -277,3 +277,4 @@ export default function HomePage() {
     </div>
   );
 }
+
