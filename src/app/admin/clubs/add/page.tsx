@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { addClubAction } from '../actions';
-import { addClubSchema, type AddClubFormInput } from '../schemas'; // Updated import
+import { addClubSchema, type AddClubFormInput } from '../schemas';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AddClubPage() {
@@ -34,7 +34,7 @@ export default function AddClubPage() {
         description: `El club "${result.club.name}" ha sido añadido con ID: ${result.club.id}.`,
       });
       router.push('/admin/clubs'); 
-      router.refresh(); // To ensure the list on /admin/clubs is updated
+      // router.refresh(); // Removed: The target page /admin/clubs is a client component that fetches on mount.
     } else {
       toast({
         title: "Error al Añadir Club",
