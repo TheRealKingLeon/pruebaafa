@@ -9,9 +9,9 @@ const navItems = [
   { href: '/', label: 'INICIO' },
   { href: '/results', label: 'PARTIDOS' },
   { href: '/participants', label: 'EQUIPOS' },
-  { href: '/competition', label: 'POSICIONES' }, // Cambiado de COMPETENCIA a POSICIONES
+  { href: '/competition', label: 'POSICIONES' },
   { href: '/contact', label: 'CONTACTO' },
-  { href: '/admin', label: 'ADMIN', icon: Cog },
+  // { href: '/admin', label: 'ADMIN', icon: Cog }, // Removed ADMIN link
 ];
 
 export function Header() {
