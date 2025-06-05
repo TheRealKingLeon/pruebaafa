@@ -6,7 +6,7 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { MatchResultCard } from '@/components/sections/results/MatchResultCard';
 import type { Match, Group } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ListEnd, ListTodo, LayoutGrid, CalendarDays, Loader2, AlertTriangle } from 'lucide-react';
+import { ListEnd, ListTodo, LayoutGrid, CalendarDays, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { getTournamentResultsData } from '@/app/services/tournament-service';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,21 @@ export default function ResultsPage() {
     fetchData();
   }, [fetchData]);
 
+  const completedMatches = allMatches?.filter(match => match.status === 'completed') || [];
+  const upcomingAndLiveMatches = allMatches?.filter(match => match.status === 'upcoming' || match.status === 'live' || match.status === 'pending_date') || [];
+  
+  const groupsWithCompletedMatches = groupList?.filter(group => 
+    completedMatches.some(match => match.groupId === group.id || match.groupName === group.name)
+  ) || [];
+
+  const groupsWithUpcomingMatches = groupList?.filter(group =>
+    upcomingAndLiveMatches.some(match => match.groupId === group.id || match.groupName === group.name)
+  ) || [];
+
+  const defaultUpcomingZoneId = groupsWithUpcomingMatches.length > 0 ? groupsWithUpcomingMatches[0].id : 'no-upcoming-zones';
+  const defaultCompletedZoneIdForGroupSelection = groupsWithCompletedMatches.length > 0 ? `${groupsWithCompletedMatches[0].id}-completed` : 'no-completed-zones';
+
+
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
@@ -66,12 +81,6 @@ export default function ResultsPage() {
     );
   }
   
-  const completedMatches = allMatches?.filter(match => match.status === 'completed') || [];
-  const upcomingAndLiveMatches = allMatches?.filter(match => match.status === 'upcoming' || match.status === 'live' || match.status === 'pending_date') || [];
-  
-  const defaultUpcomingZoneId = groupList && groupList.length > 0 ? groupList[0].id : 'no-upcoming-zones';
-  const defaultCompletedZoneIdForGroupSelection = groupList && groupList.length > 0 ? `${groupList[0].id}-completed` : 'no-completed-zones';
-
   return (
     <div className="space-y-8">
       <SectionTitle>Resultados y Próximos Partidos</SectionTitle>
@@ -90,25 +99,24 @@ export default function ResultsPage() {
         </TabsList>
 
         <TabsContent value="completed" className="mt-6">
-          {completedMatches.length > 0 ? (
+          {completedMatches.length > 0 && groupsWithCompletedMatches.length > 0 ? (
             <>
               <div className="mb-6">
                 <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
                   <LayoutGrid className="mr-2 h-5 w-5" />
                   Selecciona una Zona
                 </h3>
-                {groupList && groupList.length > 0 ? (
                   <Tabs defaultValue={defaultCompletedZoneIdForGroupSelection} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-                      {groupList.map((group) => (
+                      {groupsWithCompletedMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-completed-group-trigger`} value={`${group.id}-completed`} className="text-xs sm:text-sm py-2">
                           {group.name}
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    {groupList.map((group) => {
+                    {groupsWithCompletedMatches.map((group) => {
                       const zoneCompletedMatches = completedMatches.filter(
-                        (match) => match.groupId === group.id || match.groupName === group.name // Match by ID or name for flexibility
+                        (match) => match.groupId === group.id || match.groupName === group.name 
                       );
 
                       const uniqueMatchdays = Array.from(new Set(zoneCompletedMatches.map(m => m.matchday).filter(Boolean) as number[])).sort((a, b) => a - b);
@@ -153,9 +161,10 @@ export default function ResultsPage() {
                                           ))}
                                         </div>
                                       ) : (
-                                        <p className="text-center text-muted-foreground py-10">
+                                        <div className="text-center py-10 text-muted-foreground">
+                                          <Info className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                           No hay partidos finalizados para {group.name} - Fecha {matchday}.
-                                        </p>
+                                        </div>
                                       )}
                                     </TabsContent>
                                   );
@@ -163,42 +172,42 @@ export default function ResultsPage() {
                               </Tabs>
                             </>
                           ) : (
-                            <p className="text-center text-muted-foreground py-10">
-                              No hay partidos finalizados para {group.name}.
-                            </p>
+                             <div className="text-center py-10 text-muted-foreground">
+                                <Info className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                No hay partidos finalizados para {group.name}.
+                            </div>
                           )}
                         </TabsContent>
                       );
                     })}
                   </Tabs>
-                ) : (
-                  <p className="text-center text-muted-foreground py-10">No hay zonas definidas para filtrar.</p>
-                )}
               </div>
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-10">No hay partidos finalizados aún.</p>
+            <div className="text-center py-10 text-muted-foreground">
+                <Info className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                No hay partidos finalizados aún.
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="upcoming" className="mt-6">
-          {upcomingAndLiveMatches.length > 0 ? (
+          {upcomingAndLiveMatches.length > 0 && groupsWithUpcomingMatches.length > 0 ? (
             <>
               <div className="mb-6">
                 <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
                   <LayoutGrid className="mr-2 h-5 w-5" />
                   Selecciona una Zona
                 </h3>
-                {groupList && groupList.length > 0 ? (
                   <Tabs defaultValue={defaultUpcomingZoneId} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-                      {groupList.map((group) => (
+                      {groupsWithUpcomingMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-upcoming-trigger`} value={group.id} className="text-xs sm:text-sm py-2">
                           {group.name}
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    {groupList.map((group) => {
+                    {groupsWithUpcomingMatches.map((group) => {
                       const zoneMatches = upcomingAndLiveMatches.filter(
                         (match) => match.groupId === group.id || match.groupName === group.name
                       );
@@ -211,21 +220,22 @@ export default function ResultsPage() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-center text-muted-foreground py-10">
-                              No hay próximos partidos programados para {group.name}.
-                            </p>
+                            <div className="text-center py-10 text-muted-foreground">
+                                <Info className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                No hay próximos partidos programados para {group.name}.
+                            </div>
                           )}
                         </TabsContent>
                       );
                     })}
                   </Tabs>
-                ) : (
-                  <p className="text-center text-muted-foreground py-10">No hay zonas definidas para filtrar.</p>
-                )}
               </div>
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-10">No hay próximos partidos programados.</p>
+            <div className="text-center py-10 text-muted-foreground">
+                <Info className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                No hay próximos partidos programados.
+            </div>
           )}
         </TabsContent>
       </Tabs>

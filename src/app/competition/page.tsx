@@ -7,7 +7,7 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Group, StandingEntry, PlayoffFixture as PlayoffFixtureType } from '@/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Trophy, ListChecks, BarChart3, Loader2, AlertTriangle, Swords } from 'lucide-react';
+import { Trophy, ListChecks, BarChart3, Loader2, AlertTriangle, Swords, Info } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -19,6 +19,7 @@ import {
 import { getTournamentCompetitionData } from '@/app/services/tournament-service';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 
 export default function CompetitionPage() {
@@ -55,6 +56,18 @@ export default function CompetitionPage() {
     fetchData();
   }, [fetchData]);
 
+  const displayableGroups = groupsWithStandings?.filter(g => g.standings && g.standings.length > 0) || [];
+  const defaultGroupStageZoneId = displayableGroups.length > 0 ? displayableGroups[0].id : 'no-group-zones';
+  
+  const groupedPlayoffFixtures = playoffFixtures?.reduce((acc, fixture) => {
+    const round = fixture.round || "Desconocido";
+    if (!acc[round]) acc[round] = [];
+    acc[round].push(fixture);
+    return acc;
+  }, {} as Record<string, PlayoffFixtureType[]>) || {};
+
+  const playoffRoundOrder = ["Cuartos de Final", "Semifinal", "Final"]; 
+
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
@@ -74,17 +87,6 @@ export default function CompetitionPage() {
       </div>
     );
   }
-
-  const defaultGroupStageZoneId = groupsWithStandings && groupsWithStandings.length > 0 ? groupsWithStandings[0].id : 'no-group-zones';
-  
-  const groupedPlayoffFixtures = playoffFixtures?.reduce((acc, fixture) => {
-    const round = fixture.round || "Desconocido";
-    if (!acc[round]) acc[round] = [];
-    acc[round].push(fixture);
-    return acc;
-  }, {} as Record<string, PlayoffFixtureType[]>) || {};
-
-  const playoffRoundOrder = ["Cuartos de Final", "Semifinal", "Final"]; // Define the desired order
 
   return (
     <div className="space-y-8">
@@ -106,10 +108,10 @@ export default function CompetitionPage() {
             Los equipos se dividen en zonas y compiten en un formato de todos contra todos. Las tablas de posiciones se calculan dinámicamente a partir de los partidos completados en Firestore.
           </p>
           
-          {groupsWithStandings && groupsWithStandings.length > 0 ? (
+          {displayableGroups.length > 0 ? (
             <Tabs defaultValue={defaultGroupStageZoneId} className="w-full">
               <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-md border-border bg-muted/30 mb-6">
-                {groupsWithStandings.map((group: Group) => (
+                {displayableGroups.map((group: Group) => (
                   <TabsTrigger 
                     key={group.id} 
                     value={group.id}
@@ -119,7 +121,7 @@ export default function CompetitionPage() {
                   </TabsTrigger>
                 ))}
               </TabsList>
-              {groupsWithStandings.map((group: Group) => (
+              {displayableGroups.map((group: Group) => (
                 <TabsContent key={`${group.id}-content`} value={group.id} className="mt-0">
                   <Card className="shadow-lg bg-card text-card-foreground overflow-hidden">
                     <CardHeader className="bg-muted/50 p-4 border-b border-border">
@@ -181,7 +183,10 @@ export default function CompetitionPage() {
               ))}
             </Tabs>
           ) : (
-             <p className="text-center text-muted-foreground py-10">No hay grupos definidos en el torneo.</p>
+             <div className="text-center py-10 text-muted-foreground">
+                <Info className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                No hay grupos con tablas de posiciones disponibles en este momento.
+            </div>
           )}
         </TabsContent>
 
@@ -255,9 +260,10 @@ export default function CompetitionPage() {
             })}
           </div>
           ) : (
-            <p className="text-center text-muted-foreground py-10">
-              No hay llaves de playoffs definidas o generadas desde el panel de administración.
-            </p>
+             <div className="text-center py-10 text-muted-foreground">
+                <Info className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                No hay llaves de playoffs definidas o generadas desde el panel de administración.
+            </div>
           )}
         </TabsContent>
       </Tabs>

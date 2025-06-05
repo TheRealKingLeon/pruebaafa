@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, BarChart3, Loader2 } from 'lucide-react';
+import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,6 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  // This state is primarily for the interval to re-trigger updates for live matches
   const [currentTimeForInterval, setCurrentTimeForInterval] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -61,26 +60,15 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchData();
-    
-    // Set initial time for interval based updates
     setCurrentTimeForInterval(new Date().toISOString());
-
     const interval = setInterval(() => {
-        // This interval could re-fetch or re-filter if live status changes rapidly.
-        // For now, just updating a time to trigger potential re-renders if needed by other logic.
         setCurrentTimeForInterval(new Date().toISOString());
-        // Potentially re-fetch upcomingLiveMatches if they are very dynamic.
-        // For a simple case, initial fetch might be enough, with interval for UI updates if any.
-        // If live status is crucial, a re-fetch inside interval is better:
-        // async function refreshMatches() {
-        //   const { upcomingLiveMatches: newMatches } = await getTournamentHomePageData();
-        //   setUpcomingLiveMatches(newMatches);
-        // }
-        // refreshMatches();
-    }, 60000); // Refresh every minute
-
+    }, 60000); 
     return () => clearInterval(interval);
   }, [fetchData]); 
+
+  const displayableGroups = groupsWithStandings?.filter(g => g.standings && g.standings.length > 0) || [];
+  const defaultGroupId = displayableGroups.length > 0 ? displayableGroups[0].id : 'no-groups';
 
 
   if (isLoading) {
@@ -102,8 +90,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  const defaultGroupId = groupsWithStandings && groupsWithStandings.length > 0 ? groupsWithStandings[0].id : 'no-groups';
 
   return (
     <div className="space-y-16 pt-8">
@@ -192,7 +178,7 @@ export default function HomePage() {
       )}
 
       <section>
-        <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-start"> {/* Changed items-center to items-start */}
+        <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-start">
           <div className="space-y-6 md:sticky md:top-24">
             <SectionTitle as="h2">EL CAMINO HACIA LA GLORIA</SectionTitle>
             <p className="text-xl font-semibold leading-relaxed text-foreground">
@@ -216,7 +202,7 @@ export default function HomePage() {
             </ul>
           </div>
           
-          {groupsWithStandings && groupsWithStandings.length > 0 ? (
+          {displayableGroups.length > 0 ? (
             <div className="rounded-lg shadow-lg bg-card text-card-foreground overflow-hidden">
               <CardHeader className="bg-muted/50 p-4 border-b border-border">
                 <CardTitle className="text-xl font-headline text-primary flex items-center gap-2">
@@ -227,7 +213,7 @@ export default function HomePage() {
               <CardContent className="p-0">
                 <Tabs defaultValue={defaultGroupId} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-none border-b border-border bg-muted/30">
-                    {groupsWithStandings.map((group: GroupType) => (
+                    {displayableGroups.map((group: GroupType) => (
                       <TabsTrigger 
                         key={group.id} 
                         value={group.id}
@@ -237,7 +223,7 @@ export default function HomePage() {
                       </TabsTrigger>
                     ))}
                   </TabsList>
-                  {groupsWithStandings.map((group: GroupType) => (
+                  {displayableGroups.map((group: GroupType) => (
                     <TabsContent key={group.id} value={group.id} className="mt-6">
                       <div className="overflow-x-auto">
                         <Table className="min-w-full">
@@ -291,7 +277,12 @@ export default function HomePage() {
               </CardContent>
             </div>
           ) : (
-            <Card className="shadow-lg"><CardContent className="p-6 text-center text-muted-foreground">No hay información de posiciones disponible.</CardContent></Card>
+            <Card className="shadow-lg">
+              <CardContent className="p-6 text-center text-muted-foreground">
+                <Info className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                No hay información de posiciones disponible en este momento.
+              </CardContent>
+            </Card>
           )}
         </div>
       </section>
