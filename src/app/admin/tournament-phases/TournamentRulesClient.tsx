@@ -101,7 +101,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
         min="0"
         {...register(`tiebreakers.${index}.priority`)}
         className={`w-20 text-center ${errors?.tiebreakers?.[index]?.priority ? 'border-destructive' : ''}`}
-        disabled={!control.getValues(`tiebreakers.${index}.enabled`)} // Disable priority if not enabled
+        disabled={!item.enabled} // Use item.enabled directly
       />
       {/* errors?.tiebreakers?.[index]?.priority && <p className="text-xs text-destructive">{errors.tiebreakers[index].priority.message}</p> */}
     </div>
