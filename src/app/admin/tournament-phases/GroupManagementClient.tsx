@@ -39,6 +39,7 @@ interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
 }
 
 const TEAMS_PER_ZONE_CLIENT = 4; 
+const MINIMUM_ZONES_TO_SEED = 2;
 
 export function GroupManagementClient() {
   const [populatedGroups, setPopulatedGroups] = useState<PopulatedGroup[]>([]);
@@ -54,10 +55,8 @@ export function GroupManagementClient() {
   const [hoveredTeamAsDropTarget, setHoveredTeamAsDropTarget] = useState<{ teamId: string, groupId: string } | null>(null);
 
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
-  const [groupsSeeded, setGroupsSeeded] = useState(false); // New state for seeded groups
-  const [isSeeding, setIsSeeding] = useState(false); // New state for seeding process
-
-  // TODO: In a future step, load `groupsSeeded` from Firestore on component mount.
+  const [groupsSeeded, setGroupsSeeded] = useState(false); 
+  const [isSeeding, setIsSeeding] = useState(false); 
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -123,7 +122,7 @@ export function GroupManagementClient() {
       const result = await resetAndClearGroupsAction();
       if (result.success) {
         toast({ title: "Grupos Limpiados", description: result.message });
-        setGroupsSeeded(false); // If groups are reset, they are no longer seeded
+        setGroupsSeeded(false); 
         await fetchData(); 
       } else {
         toast({ title: "Error al Limpiar Grupos", description: result.message, variant: "destructive" });
@@ -142,8 +141,7 @@ export function GroupManagementClient() {
       const result = await seedGroupStageMatchesAction();
       if (result.success) {
         toast({ title: "Seed Iniciado", description: result.message });
-        setGroupsSeeded(true); // Mark groups as seeded
-        // Optionally, fetchData() again if the action modifies group data or match counts
+        setGroupsSeeded(true); 
       } else {
         toast({ title: "Error al Iniciar Seed", description: result.message, variant: "destructive" });
       }
@@ -307,8 +305,27 @@ export function GroupManagementClient() {
     await fetchData(); 
   };
 
-  const allZonesFull = populatedGroups.length === 8 && populatedGroups.every(g => g.teams.length === TEAMS_PER_ZONE_CLIENT);
-  const canSeedGroups = !groupsSeeded && allZonesFull && allTeams.length >= (8 * TEAMS_PER_ZONE_CLIENT);
+  const completedZonesCount = populatedGroups.filter(g => g.teams.length === TEAMS_PER_ZONE_CLIENT).length;
+
+  // Debugging logs for canSeedGroups
+  console.log("--- Debugging canSeedGroups ---");
+  console.log("Current Time:", new Date().toLocaleTimeString());
+  console.log("1. groupsSeeded:", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
+  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_TO_SEED (${MINIMUM_ZONES_TO_SEED})? ${populatedGroups.length >= MINIMUM_ZONES_TO_SEED})`);
+  console.log("3. TEAMS_PER_ZONE_CLIENT:", TEAMS_PER_ZONE_CLIENT);
+  console.log("4. completedZonesCount:", completedZonesCount, `(>= MINIMUM_ZONES_TO_SEED (${MINIMUM_ZONES_TO_SEED})? ${completedZonesCount >= MINIMUM_ZONES_TO_SEED})`);
+  console.log("5. allTeams.length:", allTeams.length);
+  const requiredTeamsForMinZones = MINIMUM_ZONES_TO_SEED * TEAMS_PER_ZONE_CLIENT;
+  console.log("6. Required teams for min zones (MINIMUM_ZONES_TO_SEED * TEAMS_PER_ZONE_CLIENT):", requiredTeamsForMinZones);
+  console.log("7. allTeams.length >= required teams?", allTeams.length >= requiredTeamsForMinZones);
+  
+  const canSeedGroups = !groupsSeeded &&
+    populatedGroups.length >= MINIMUM_ZONES_TO_SEED &&
+    completedZonesCount >= MINIMUM_ZONES_TO_SEED &&
+    allTeams.length >= requiredTeamsForMinZones;
+  
+  console.log("Final canSeedGroups result:", canSeedGroups);
+  console.log("-----------------------------");
 
 
   if (isLoading) {
@@ -396,8 +413,9 @@ export function GroupManagementClient() {
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
             title={
                 groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." :
-                !allZonesFull ? `Se requiere que todas las ${populatedGroups.length} zonas tengan ${TEAMS_PER_ZONE_CLIENT} equipos. Actualmente algunas no cumplen.` :
-                allTeams.length < (8 * TEAMS_PER_ZONE_CLIENT) ? `Se requieren al menos ${8*TEAMS_PER_ZONE_CLIENT} equipos en total.` :
+                (populatedGroups.length < MINIMUM_ZONES_TO_SEED) ? `Se requieren al menos ${MINIMUM_ZONES_TO_SEED} zonas de grupos. Actualmente hay ${populatedGroups.length}.` :
+                (completedZonesCount < MINIMUM_ZONES_TO_SEED) ? `Se requiere que al menos ${MINIMUM_ZONES_TO_SEED} zonas tengan ${TEAMS_PER_ZONE_CLIENT} equipos. Actualmente ${completedZonesCount} cumplen.` :
+                (allTeams.length < requiredTeamsForMinZones) ? `Se requieren al menos ${requiredTeamsForMinZones} equipos en total para ${MINIMUM_ZONES_TO_SEED} zonas.` :
                 "Iniciar el sembrado de grupos y generar partidos"
             }
           >
@@ -510,3 +528,5 @@ export function GroupManagementClient() {
     </div>
   );
 }
+
+    
