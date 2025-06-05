@@ -44,10 +44,10 @@ interface SortableTiebreakerItemProps {
   control: any; 
   register: any; 
   errors: any; 
-  getValues: any;
+  // getValues: any; // No longer needed here
 }
 
-function SortableTiebreakerItem({ item, index, control, register, errors, getValues }: SortableTiebreakerItemProps) {
+function SortableTiebreakerItem({ item, index, control, register, errors }: SortableTiebreakerItemProps) {
   const {
     attributes,
     listeners,
@@ -170,13 +170,15 @@ export function TournamentRulesClient() {
         const currentTiebreakers = form.getValues('tiebreakers');
         const rePrioritized = updatePriorities(currentTiebreakers);
         
+        // Check if there's an actual change to avoid infinite loop
         if (JSON.stringify(rePrioritized) !== JSON.stringify(currentTiebreakers)) {
             form.setValue('tiebreakers', rePrioritized, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
         }
       }
     });
     return () => subscription.unsubscribe();
-  }, [form.watch, form.getValues, form.setValue, form]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.watch, form.getValues, form.setValue]);
 
 
   const onSubmit: SubmitHandler<TournamentRulesFormInput> = async (data) => {
@@ -186,6 +188,7 @@ export function TournamentRulesClient() {
     
     const payload = {
         ...data,
+        // Filter out disabled tiebreakers before sending, or send all and let backend handle
         tiebreakers: processedTiebreakers.filter(tb => tb.enabled) 
     };
     
@@ -306,13 +309,12 @@ export function TournamentRulesClient() {
             <section>
               <h3 className="text-lg font-semibold mb-1 text-foreground">Criterios de Desempate</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Habilita los criterios y arrastra para ordenar su prioridad. La prioridad se asignará automáticamente.
+                Habilita los criterios y arrastra para ordenar su prioridad. La prioridad se asignará automáticamente (1, 2, 3...).
               </p>
               {form.formState.errors.tiebreakers && typeof form.formState.errors.tiebreakers === 'object' && 'message' in form.formState.errors.tiebreakers && (
                    <div className="p-3 mb-4 bg-destructive/10 border border-destructive text-destructive text-sm rounded-md flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0"/>
-                      { /* @ts-ignore */ }
-                      <span>{form.formState.errors.tiebreakers.message}</span>
+                      <span>{(form.formState.errors.tiebreakers as any).message}</span>
                   </div>
               )}
 
@@ -321,25 +323,30 @@ export function TournamentRulesClient() {
                   {fields.map((field, index) => (
                     <SortableTiebreakerItem
                       key={field.fieldId} 
-                      item={{...field, ...form.getValues(`tiebreakers.${index}`)}}
+                      item={{...field, ...form.getValues(`tiebreakers.${index}`)}} // Pass current field values for 'enabled' state
                       index={index}
                       control={form.control}
                       register={form.register}
                       errors={form.formState.errors}
-                      getValues={form.getValues} // Pass getValues to SortableTiebreakerItem
                     />
                   ))}
                 </SortableContext>
               </DndContext>
               {fields.map((field, index) => {
                  const tiebreakerError = form.formState.errors?.tiebreakers?.[index];
-                 if (tiebreakerError && typeof tiebreakerError === 'object' && 'priority' in tiebreakerError && tiebreakerError.priority) {
+                 if (tiebreakerError && typeof tiebreakerError === 'object' && 'priority' in tiebreakerError && (tiebreakerError.priority as any)?.message) {
                     return (
                         <p key={`err-prio-${field.id}`} className="text-sm text-destructive mt-1">
-                        { /* @ts-ignore */ }
-                        Error en prioridad para "{field.name}": {tiebreakerError.priority.message}
+                        Error en prioridad para "{field.name}": {(tiebreakerError.priority as any).message}
                         </p>
                     );
+                 }
+                 // Show root message for tiebreakers array if present (e.g., for refine on unique priorities)
+                 if (index === 0 && form.formState.errors.tiebreakers && (form.formState.errors.tiebreakers as any).root?.message) {
+                    return <p key="err-tiebreakers-root" className="text-sm text-destructive mt-1">{(form.formState.errors.tiebreakers as any).root.message}</p>
+                 }
+                 if (index === 0 && form.formState.errors.tiebreakers?.message) {
+                   return <p key="err-tiebreakers-general" className="text-sm text-destructive mt-1">{form.formState.errors.tiebreakers.message}</p>
                  }
                  return null;
               })}
