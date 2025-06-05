@@ -221,23 +221,42 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
   const details: ImportClubResultDetail[] = [];
 
   for (let i = 0; i < clubsToImport.length; i++) {
-    const clubData = clubsToImport[i]; 
+    const clubDataFromCSV = clubsToImport[i]; 
     const lineNumber = i + 1;
     let validatedDataIfSuccessful: AddClubFormInputForServer | null = null; 
+    let normalizedLogoUrl: string;
 
     try {
-      // Use the server-specific schema for validation
-      const validationResult = addClubSchemaForServer.safeParse(clubData);
+      // Normalize and validate the logo URL first
+      try {
+        normalizedLogoUrl = new URL(clubDataFromCSV.logoUrl.trim()).href;
+      } catch (urlError) {
+        errorCount++;
+        const reason = `URL del logo inválida: "${clubDataFromCSV.logoUrl}". Error: ${urlError instanceof Error ? urlError.message : String(urlError)}`;
+        details.push({
+          lineNumber,
+          clubName: clubDataFromCSV.name || 'Nombre no proporcionado',
+          status: 'error',
+          reason: reason,
+        });
+        console.warn(`[Server Action] CSV Import Logo URL Error line ${lineNumber} (${clubDataFromCSV.name || 'N/A'}): ${reason}`);
+        continue; // Skip to the next club
+      }
+
+      // Use the server-specific schema for validation with the normalized URL
+      const clubDataForValidation = { name: clubDataFromCSV.name, logoUrl: normalizedLogoUrl };
+      const validationResult = addClubSchemaForServer.safeParse(clubDataForValidation);
+
       if (!validationResult.success) {
         errorCount++;
         const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'field'}: ${e.message}`).join('; ');
         details.push({
           lineNumber,
-          clubName: clubData.name || 'Nombre no proporcionado',
+          clubName: clubDataFromCSV.name || 'Nombre no proporcionado',
           status: 'error',
           reason: `Datos inválidos: ${errorMessages}`,
         });
-        console.warn(`[Server Action] CSV Import Validation Error line ${lineNumber} (${clubData.name || 'N/A'}): ${errorMessages}`);
+        console.warn(`[Server Action] CSV Import Validation Error line ${lineNumber} (${clubDataFromCSV.name || 'N/A'}): ${errorMessages}`);
         continue; 
       }
       
@@ -255,7 +274,7 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       }
 
       const newClubDoc = {
-        ...validatedDataIfSuccessful,
+        ...validatedDataIfSuccessful, // This now contains the normalized logoUrl
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -271,7 +290,7 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       let specificErrorReason = "Error desconocido durante el procesamiento en servidor.";
       if (error instanceof TypeError && error.message.includes("is not a function")) {
           // Check if the error message contains the specific problematic import path from the original error
-          if (error.message.includes("addClubSchema.safeParse") || error.message.includes("addClubSchemaForServer.safeParse")) {
+          if (error.message.includes("addClubSchemaForServer.safeParse")) { // Check for the correct schema name
              specificErrorReason = `Error de Configuración del Servidor: ${error.message}. Revisa el empaquetador (Turbopack) y dependencias.`;
           } else {
              specificErrorReason = `Error de Tipo en Servidor: ${error.message}.`;
@@ -283,11 +302,11 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       }
       details.push({
         lineNumber,
-        clubName: clubData.name || 'Nombre no disponible', 
+        clubName: clubDataFromCSV.name || 'Nombre no disponible', 
         status: 'error',
         reason: specificErrorReason,
       });
-      console.error(`[Server Action] Error processing club "${clubData.name || 'N/A'}" (Line ${lineNumber}) from CSV:`, error);
+      console.error(`[Server Action] Error processing club "${clubDataFromCSV.name || 'N/A'}" (Line ${lineNumber}) from CSV:`, error);
     }
   }
 

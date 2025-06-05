@@ -247,10 +247,15 @@ export default function ManageClubsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clubs.map((club) => (
+              {clubs.map((club) => {
+                if (typeof window !== 'undefined') { // Solo loguear en el cliente
+                  console.log(`[Club Image Render] Club: ${club.name}, Attempting to load logoUrl: "${club.logoUrl}"`);
+                }
+                return (
                 <TableRow key={club.id}>
                   <TableCell>
                     <Image 
+                      key={club.id + (club.logoUrl || '')} // Key mejorada
                       src={club.logoUrl || "https://placehold.co/64x64.png?text=?"} 
                       alt={`${club.name} logo`} 
                       width={40} 
@@ -299,7 +304,8 @@ export default function ManageClubsPage() {
                     </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+            })}
             </TableBody>
           </Table>
         </CardContent>
@@ -315,5 +321,3 @@ export default function ManageClubsPage() {
     </div>
   );
 }
-
-    
