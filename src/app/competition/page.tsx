@@ -81,7 +81,7 @@ export default function CompetitionPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <p className="text-xl text-destructive font-semibold">Error al Cargar Datos de la Competición</p>
+        <p className="text-xl text-destructive font-semibold">Error al Cargar Datos de Posiciones</p>
         <p className="text-muted-foreground mb-4">{error}</p>
         <Button onClick={fetchData}>Reintentar</Button>
       </div>
@@ -90,7 +90,7 @@ export default function CompetitionPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle>Competencia: Fase de Grupos y Playoffs</SectionTitle>
+      <SectionTitle>Posiciones: Fase de Grupos y Playoffs</SectionTitle>
 
       <Tabs defaultValue="group-stage" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto">
@@ -270,6 +270,3 @@ export default function CompetitionPage() {
     </div>
   );
 }
-
-
-    

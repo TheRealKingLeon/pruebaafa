@@ -7,9 +7,9 @@ import { Menu, Cog } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'INICIO' },
-  { href: '/results', label: 'PARTIDOS' }, // Renamed from RESULTADOS
+  { href: '/results', label: 'PARTIDOS' },
   { href: '/participants', label: 'EQUIPOS' },
-  { href: '/competition', label: 'COMPETENCIA' }, // Renamed from PARTIDOS
+  { href: '/competition', label: 'POSICIONES' }, // Cambiado de COMPETENCIA a POSICIONES
   { href: '/contact', label: 'CONTACTO' },
   { href: '/admin', label: 'ADMIN', icon: Cog },
 ];
