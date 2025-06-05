@@ -15,7 +15,7 @@ import { ArrowLeft, Save, Loader2, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import { mockTeams } from '@/data/mock';
 import type { Team, Player } from '@/types';
-import { updatePlayerAction, playerFormSchema, type UpdatePlayerFormInput } from '../actions'; // Adjusted path
+import { updatePlayerAction, playerFormSchema, type UpdatePlayerFormInput } from '../../actions';
 
 export default function EditPlayerPage() {
   const router = useRouter();
