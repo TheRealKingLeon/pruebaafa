@@ -29,15 +29,10 @@ async function getTeamsDetailsMap(teamIds: string[]): Promise<Map<string, Team>>
       const snapshot = await getDocs(teamsQuery);
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
-        // Ensure Timestamps on Team object itself are converted
         const teamData: Team = {
           id: docSnap.id,
           name: data.name,
           logoUrl: data.logoUrl,
-          // Assuming 'player' field is not directly stored with its own timestamps in 'equipos' doc
-          // If player data IS embedded and HAS timestamps, it would need similar conversion here.
-          // Based on current admin/clubs/actions.ts, 'player' is not stored in 'equipos'.
-          // It's linked by clubId to 'jugadores' collection.
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
           updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
         };
@@ -79,6 +74,8 @@ async function calculateStandings(
   rules: TournamentRules | null
 ): Promise<StandingEntry[]> {
   if (!rules) {
+    // Fallback default rules if tournamentRules are not loaded or available
+    console.warn(`[calculateStandings] Tournament rules not available for group ${groupId}, using fallback default rules.`);
     rules = {
       pointsForWin: 3,
       pointsForDraw: 1,
@@ -87,7 +84,7 @@ async function calculateStandings(
       tiebreakers: [
         { id: 'goalDifference', name: 'Goal Difference', priority: 1, enabled: true },
         { id: 'goalsFor', name: 'Goals For', priority: 2, enabled: true },
-      ]
+      ] // Basic default tiebreakers
     };
   }
 
@@ -176,8 +173,11 @@ async function calculateStandings(
             case 'matchesWon':
                 if (b.won !== a.won) return b.won - a.won;
                 break;
+            // Add other tiebreaker criteria here as needed, e.g., directResult
+            // directResult would require fetching specific matches between tied teams
         }
     }
+    // Fallback to alphabetical by team name if all tiebreakers are equal
     return a.team.name.localeCompare(b.team.name);
   });
 
@@ -195,20 +195,24 @@ export async function getTournamentCompetitionData(): Promise<{
     const groupsSnapshot = await getDocs(groupsQuery);
     const rawGroups = groupsSnapshot.docs.map(doc => convertGroupTimestamps({ id: doc.id, ...doc.data() }));
 
-    const allTeamIds = new Set<string>();
-    rawGroups.forEach(g => g.teamIds.forEach(tid => allTeamIds.add(tid)));
-    const teamsMap = await getTeamsDetailsMap(Array.from(allTeamIds)); // Teams from here will have converted timestamps
+    const allTeamIdsInGroups = new Set<string>();
+    rawGroups.forEach(g => g.teamIds.forEach(tid => allTeamIdsInGroups.add(tid)));
+    const teamsMap = await getTeamsDetailsMap(Array.from(allTeamIdsInGroups)); 
 
     const rulesResult = await loadTournamentRulesAction();
     const tournamentRules = rulesResult.success ? rulesResult.data : null;
+    if (!rulesResult.success || !tournamentRules) {
+        console.warn("Failed to load tournament rules for getTournamentCompetitionData. Standings might use default calculation rules. Message:", rulesResult.message);
+    }
+
 
     const groupsWithStandings: Group[] = [];
     for (const rawGroup of rawGroups) {
       const groupTeams = rawGroup.teamIds.map(tid => teamsMap.get(tid)).filter(Boolean) as Team[];
       const standings = await calculateStandings(rawGroup.id, groupTeams, tournamentRules);
       groupsWithStandings.push({
-        ...rawGroup, // Already has converted timestamps
-        teams: groupTeams, // Teams here have converted timestamps
+        ...rawGroup, 
+        teams: groupTeams, 
         standings: standings,
       });
     }
@@ -230,13 +234,16 @@ export async function getTournamentCompetitionData(): Promise<{
       if (pf.team1Id) playoffTeamIds.add(pf.team1Id);
       if (pf.team2Id) playoffTeamIds.add(pf.team2Id);
     });
-    const playoffTeamsMap = await getTeamsDetailsMap(Array.from(playoffTeamIds)); // Teams for playoffs
+    // Fetch details for teams involved in playoffs if they weren't already in groups.
+    // This reuses teamsMap if teams are common, or fetches new ones.
+    const playoffTeamsMap = await getTeamsDetailsMap(Array.from(playoffTeamIds));
+
 
     const playoffFixtures = rawPlayoffFixtures.map(pf => {
       const team1 = pf.team1Id ? playoffTeamsMap.get(pf.team1Id) : undefined;
       const team2 = pf.team2Id ? playoffTeamsMap.get(pf.team2Id) : undefined;
       return {
-        ...pf, // Already has converted timestamps
+        ...pf, 
         team1Name: team1?.name,
         team1LogoUrl: team1?.logoUrl,
         team2Name: team2?.name,
@@ -275,10 +282,13 @@ export async function getTournamentHomePageData(): Promise<{
       limit(5)
     );
 
-    const [upcomingSnapshot, liveSnapshot] = await Promise.all([
+    const promiseResults = await Promise.all([
       getDocs(upcomingQuery),
-      getDocs(liveSnapshot)
+      getDocs(liveQuery)
     ]);
+    
+    const upcomingSnapshot = promiseResults[0];
+    const liveSnapshot = promiseResults[1];
 
     const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
@@ -308,10 +318,10 @@ export async function getTournamentHomePageData(): Promise<{
       if (m.team1Id) matchTeamIds.add(m.team1Id);
       if (m.team2Id) matchTeamIds.add(m.team2Id);
     });
-    const teamsMapForMatches = await getTeamsDetailsMap(Array.from(matchTeamIds)); // Teams will have converted timestamps
+    const teamsMapForMatches = await getTeamsDetailsMap(Array.from(matchTeamIds)); 
 
     const upcomingLiveMatches = limitedMatches.map(m => ({
-      ...m, // Match timestamps are already converted
+      ...m, 
       team1: m.team1Id ? teamsMapForMatches.get(m.team1Id) : undefined,
       team2: m.team2Id ? teamsMapForMatches.get(m.team2Id) : undefined,
     })).filter(m => m.team1 && m.team2) as Match[];
@@ -348,10 +358,10 @@ export async function getTournamentResultsData(): Promise<{
       if (m.team1Id) teamIds.add(m.team1Id);
       if (m.team2Id) teamIds.add(m.team2Id);
     });
-    const teamsMap = await getTeamsDetailsMap(Array.from(teamIds)); // Teams will have converted timestamps
+    const teamsMap = await getTeamsDetailsMap(Array.from(teamIds)); 
 
     const allMatches = rawMatches.map(m => ({
-      ...m, // Match timestamps are already converted
+      ...m, 
       team1: m.team1Id ? teamsMap.get(m.team1Id) : undefined,
       team2: m.team2Id ? teamsMap.get(m.team2Id) : undefined,
     })).filter(m => m.team1 && m.team2) as Match[];
@@ -376,3 +386,4 @@ export async function getTournamentResultsData(): Promise<{
     return { allMatches: [], groupList: [], error: message };
   }
 }
+
