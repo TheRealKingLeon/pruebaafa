@@ -1,8 +1,8 @@
 
 import Image from 'next/image';
 import type { Player } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserCircle, Gamepad, Info } from 'lucide-react';
+import { Card, CardContent, CardTitle } from '@/components/ui/card'; // Removed CardHeader
+import { UserCircle, Gamepad, Info, Shield } from 'lucide-react';
 
 interface PlayerDetailCardProps {
   player: Player | null;
@@ -14,13 +14,11 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
   if (!player) {
     return (
       <Card className="sticky top-20 shadow-xl h-fit">
-        <CardHeader>
-          <CardTitle className="font-headline text-primary">Selecciona un Jugador</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Haz clic en un club de la lista para ver los detalles del jugador.</p>
-          <div className="flex justify-center items-center h-64">
-            <UserCircle className="w-32 h-32 text-muted" />
+        <CardContent className="p-8 text-center"> {/* Increased padding, text-center */}
+          <CardTitle className="font-headline text-2xl text-primary mb-4">Selecciona un Jugador</CardTitle>
+          <p className="text-muted-foreground mb-8">Haz clic en un club de la lista para ver los detalles del jugador.</p>
+          <div className="flex justify-center items-center">
+            <UserCircle className="w-40 h-40 text-muted opacity-50" /> {/* Larger icon */}
           </div>
         </CardContent>
       </Card>
@@ -28,48 +26,60 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
   }
 
   return (
-    <Card className="sticky top-20 shadow-xl h-fit animate-fade-in">
-      <CardHeader className="text-center bg-muted/30">
-        {clubLogoUrl && clubName && (
-          <Image
-            src={clubLogoUrl}
-            alt={`${clubName} logo`}
-            width={80}
-            height={80}
-            className="mx-auto mb-2 rounded-full object-contain"
-            data-ai-hint={clubName.toLowerCase().includes("river") || clubName.toLowerCase().includes("boca") ? "football club" : "team logo"}
-          />
-        )}
-        <CardTitle className="font-headline text-2xl text-primary">{player.name}</CardTitle>
-        <p className="text-primary font-semibold">{player.gamerTag}</p>
-        {clubName && <p className="text-sm text-muted-foreground">Representando a {clubName}</p>}
-      </CardHeader>
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex justify-center">
-          <Image
-            src={player.imageUrl}
-            alt={player.name}
-            width={200}
-            height={200}
-            className="rounded-lg shadow-md object-cover"
-            data-ai-hint="esports player photo"
-          />
-        </div>
-        
-        <div>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-primary mb-1">
-            <Info className="h-5 w-5" /> Biografía
-          </h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">{player.bio}</p>
-        </div>
-        
-        <div>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-primary mb-1">
-            <Gamepad className="h-5 w-5" /> Especialidad
-          </h3>
-          <p className="text-sm text-muted-foreground">FC 25 Virtuoso</p>
-        </div>
+    <Card className="sticky top-20 shadow-xl h-fit animate-fade-in overflow-hidden">
+      <CardContent className="p-6">
+        <div className="grid md:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Player Info */}
+          <div className="md:col-span-7 space-y-4">
+            {clubLogoUrl && clubName && (
+              <div className="flex items-center gap-3 mb-3">
+                <Image
+                  src={clubLogoUrl}
+                  alt={`${clubName} logo`}
+                  width={32}
+                  height={32}
+                  className="rounded-full object-contain"
+                  data-ai-hint={clubName.toLowerCase().includes("river") || clubName.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Representando a <span className="font-semibold text-foreground">{clubName}</span>
+                </p>
+              </div>
+            )}
 
+            <h1 className="text-3xl lg:text-4xl font-bold font-headline text-primary leading-tight">{player.name}</h1>
+            <p className="text-xl font-semibold text-foreground -mt-1">@{player.gamerTag}</p>
+            
+            <div className="pt-3 space-y-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-md font-semibold text-muted-foreground mb-1">
+                  <Info className="h-4 w-4" /> Biografía
+                </h3>
+                <p className="text-sm text-foreground/80 leading-relaxed">{player.bio}</p>
+              </div>
+              
+              <div>
+                <h3 className="flex items-center gap-2 text-md font-semibold text-muted-foreground mb-1">
+                  <Gamepad className="h-4 w-4" /> Especialidad en FC 25
+                </h3>
+                <p className="text-sm text-foreground/80">Conocido por su dominio en el campo virtual de FC 25.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Player Image */}
+          <div className="md:col-span-5 flex items-center justify-center md:justify-end mt-4 md:mt-0">
+            <Image
+              src={player.imageUrl} // This is the placeholder for now
+              alt={player.name}
+              width={300} 
+              height={300}
+              className="rounded-lg shadow-xl object-cover aspect-square border-2 border-primary/30"
+              data-ai-hint="esports player photo"
+              priority // Prioritize loading the main player image
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
