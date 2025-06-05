@@ -105,6 +105,7 @@ export interface TournamentRules {
   pointsForWin: number;
   pointsForDraw: number;
   pointsForLoss: number;
+  roundRobinType: 'one-way' | 'two-way'; // Added for Round Robin type
   tiebreakers: TiebreakerRule[];
   // Potentially other rules in the future
 }

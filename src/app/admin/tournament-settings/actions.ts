@@ -20,6 +20,6 @@ export async function saveTournamentRulesAction(data: TournamentRulesFormInput) 
 
   return { 
     success: true, 
-    message: "Acción 'saveTournamentRulesAction' ejecutada (simulación). Datos registrados en consola del servidor." 
+    message: "Acción 'saveTournamentRulesAction' ejecutada (simulación). Datos registrados en consola del servidor, incluyendo 'roundRobinType'." 
   };
 }

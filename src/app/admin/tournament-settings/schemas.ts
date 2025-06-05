@@ -36,6 +36,10 @@ export const tournamentRulesSchema = z.object({
     (val) => parseInt(z.string().parse(val), 10),
     z.number().min(0, { message: "Los puntos por derrota deben ser un número positivo o cero." })
   ),
+  roundRobinType: z.enum(['one-way', 'two-way'], {
+    required_error: "Debes seleccionar la modalidad de la fase de grupos.",
+    invalid_type_error: "Modalidad inválida."
+  }),
   tiebreakers: z.array(tiebreakerRuleSchema)
     .refine(tiebreakers => { // Ensure priorities are unique among enabled tiebreakers
       const enabledPriorities = tiebreakers.filter(tb => tb.enabled).map(tb => tb.priority);
