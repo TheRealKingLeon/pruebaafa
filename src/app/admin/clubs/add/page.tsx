@@ -11,23 +11,34 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
-import { addClubAction, addClubSchema, type AddClubFormInput } from './../actions';
+import { addClubAction, addClubSchema, type AddClubFormInput } from '../actions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AddClubPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AddClubFormInput>({
     resolver: zodResolver(addClubSchema),
+    defaultValues: {
+      name: "",
+      logoUrl: ""
+    }
   });
 
   const onSubmit: SubmitHandler<AddClubFormInput> = async (data) => {
     const result = await addClubAction(data);
-    console.log(result.message);
-    // Aquí podrías usar un toast para mostrar el mensaje de éxito
-    // Para este prototipo, redirigimos a la lista de clubes
-    if (result.success) {
-      // En una app real, querrías invalidar el caché de la lista de clubes o refetchear
+    if (result.success && result.club) {
+      toast({
+        title: "Club Añadido",
+        description: `El club "${result.club.name}" ha sido añadido con ID: ${result.club.id}.`,
+      });
       router.push('/admin/clubs'); 
-      // O podrías hacer router.refresh() si la lista de clubes usa Server Components que revalidan
+    } else {
+      toast({
+        title: "Error al Añadir Club",
+        description: result.message || "No se pudo añadir el club a Firestore.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -40,14 +51,14 @@ export default function AddClubPage() {
             <span className="sr-only">Volver</span>
           </Link>
         </Button>
-        <SectionTitle as="h1" className="mb-0 pb-0 border-none">Añadir Nuevo Club</SectionTitle>
+        <SectionTitle as="h1" className="mb-0 pb-0 border-none">Añadir Nuevo Club a Firestore</SectionTitle>
       </div>
 
       <Card className="max-w-2xl mx-auto shadow-lg">
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardHeader>
             <CardTitle>Detalles del Club</CardTitle>
-            <CardDescription>Complete la información para el nuevo club.</CardDescription>
+            <CardDescription>Complete la información para el nuevo club. Se guardará en Firestore.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -75,14 +86,11 @@ export default function AddClubPage() {
           <CardFooter className="flex justify-end">
             <Button type="submit" disabled={isSubmitting}>
               <Save className="mr-2 h-5 w-5" />
-              {isSubmitting ? "Guardando..." : "Guardar Club"}
+              {isSubmitting ? "Guardando en Firestore..." : "Guardar Club"}
             </Button>
           </CardFooter>
         </form>
       </Card>
-      <p className="text-sm text-center text-muted-foreground italic mt-6">
-        Nota: Al guardar, los datos se registrarán en la consola del servidor. No se producirán cambios permanentes.
-      </p>
     </div>
   );
 }
