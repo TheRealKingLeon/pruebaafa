@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, getFirebaseDebugInfo } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp, documentId, limit } from 'firebase/firestore';
 import type {
   Team,
@@ -190,6 +190,16 @@ export async function getTournamentCompetitionData(): Promise<{
   playoffFixtures: PlayoffFixture[];
   error?: string;
 }> {
+  const debugInfo = getFirebaseDebugInfo();
+  if (!db || !debugInfo.isDbInitialized) {
+    console.error("[Service Error] getTournamentCompetitionData: Firestore db instance is not available.", debugInfo);
+    return { 
+      groupsWithStandings: [], 
+      playoffFixtures: [], 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+    };
+  }
+
   try {
     const groupsQuery = query(collection(db, "grupos"), orderBy("name"));
     const groupsSnapshot = await getDocs(groupsQuery);
@@ -254,7 +264,12 @@ export async function getTournamentCompetitionData(): Promise<{
   } catch (error) {
     console.error("Error fetching tournament competition data:", error);
     const message = error instanceof Error ? error.message : "Unknown error fetching competition data.";
-    return { groupsWithStandings: [], playoffFixtures: [], error: message };
+    const currentDebugInfo = getFirebaseDebugInfo();
+    return { 
+        groupsWithStandings: [], 
+        playoffFixtures: [], 
+        error: `Error obteniendo datos de competición: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+    };
   }
 }
 
@@ -264,9 +279,18 @@ export async function getTournamentHomePageData(): Promise<{
   groupsWithStandings: Group[];
   error?: string;
 }> {
+  const debugInfo = getFirebaseDebugInfo();
+  if (!db || !debugInfo.isDbInitialized) {
+    console.error("[Service Error] getTournamentHomePageData: Firestore db instance is not available.", debugInfo);
+    return { 
+      upcomingLiveMatches: [], 
+      groupsWithStandings: [], 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+    };
+  }
+
   try {
-    const now = new Date(); // Use JavaScript Date for client-side comparison
-    const nowTimestamp = Timestamp.fromDate(now); // For Firestore comparison if needed
+    const now = new Date(); 
 
     const liveQuery = query(
       collection(db, "matches"),
@@ -277,8 +301,7 @@ export async function getTournamentHomePageData(): Promise<{
     const upcomingQuery = query(
       collection(db, "matches"),
       where("status", "==", "upcoming"),
-      // No date filter here, will filter in code
-      limit(20) // Fetch more to have enough after client-side date filtering
+      limit(20) 
     );
     
     const pendingDateQuery = query(
@@ -307,7 +330,7 @@ export async function getTournamentHomePageData(): Promise<{
 
     let rawUpcomingMatches = rawUpcomingMatchesDocs
         .map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }))
-        .filter(match => match.date && new Date(match.date as string) >= now); // Filter by date in code
+        .filter(match => match.date && new Date(match.date as string) >= now);
 
     rawUpcomingMatches.sort((a, b) => { 
         if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
@@ -383,18 +406,28 @@ export async function getTournamentHomePageData(): Promise<{
     })).filter(m => m.team1 && m.team2) as Match[];
 
 
-    const { groupsWithStandings: fetchedGroups, error: groupsError } = await getTournamentCompetitionData();
-    if (groupsError) {
-        console.warn("Error fetching groups for home page, using empty array.", groupsError);
-        return { upcomingLiveMatches, groupsWithStandings: [], error: groupsError};
+    // For the home page, we call getTournamentCompetitionData to get groups with standings
+    // but we only need the groups part, not playoffs.
+    // We need to handle its potential error too.
+    const competitionData = await getTournamentCompetitionData();
+    if (competitionData.error && !competitionData.groupsWithStandings.length) { // if error and no groups, pass it up
+        console.warn("Error fetching groups for home page via getTournamentCompetitionData. Error:", competitionData.error);
+        return { upcomingLiveMatches, groupsWithStandings: [], error: competitionData.error};
     }
-
-    return { upcomingLiveMatches, groupsWithStandings: fetchedGroups };
+    // If there was an error but some groups were fetched (e.g. playoff part failed), use what we have for groups.
+    // If no error, all good.
+    
+    return { upcomingLiveMatches, groupsWithStandings: competitionData.groupsWithStandings };
 
   } catch (error) {
     console.error("Error fetching tournament home page data:", error);
     const message = error instanceof Error ? error.message : "Unknown error fetching home page data.";
-    return { upcomingLiveMatches: [], groupsWithStandings: [], error: message };
+    const currentDebugInfo = getFirebaseDebugInfo();
+    return { 
+        upcomingLiveMatches: [], 
+        groupsWithStandings: [], 
+        error: `Error obteniendo datos de página principal: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+    };
   }
 }
 
@@ -404,6 +437,16 @@ export async function getTournamentResultsData(): Promise<{
   groupList: Pick<Group, 'id' | 'name' | 'zoneId'>[];
   error?: string;
 }> {
+  const debugInfo = getFirebaseDebugInfo();
+  if (!db || !debugInfo.isDbInitialized) {
+    console.error("[Service Error] getTournamentResultsData: Firestore db instance is not available.", debugInfo);
+    return { 
+      allMatches: [], 
+      groupList: [], 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+    };
+  }
+
   try {
     const matchesQuery = query(collection(db, "matches"));
     const matchesSnapshot = await getDocs(matchesQuery);
@@ -457,7 +500,11 @@ export async function getTournamentResultsData(): Promise<{
   } catch (error) {
     console.error("Error fetching tournament results data:", error);
     const message = error instanceof Error ? error.message : "Unknown error fetching results data.";
-    return { allMatches: [], groupList: [], error: message };
+    const currentDebugInfo = getFirebaseDebugInfo();
+    return { 
+        allMatches: [], 
+        groupList: [], 
+        error: `Error obteniendo datos de resultados: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+    };
   }
 }
-
