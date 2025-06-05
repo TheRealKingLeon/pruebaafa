@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, BarChart3 } from 'lucide-react';
+import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, BarChart3, Loader2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { mockMatches, mockGroups } from '@/data/mock'; 
+import { mockMatches as importedMockMatches, mockGroups as importedMockGroups } from '@/data/mock'; 
 import type { Match, StandingEntry, Group as GroupType } from '@/types'; 
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,20 +26,50 @@ import { useState, useEffect } from 'react';
 
 export default function HomePage() {
   const [upcomingLiveMatches, setUpcomingLiveMatches] = useState<Match[]>([]);
-  const [currentTimestamp, setCurrentTimestamp] = useState(new Date().toISOString());
+  const [pageGroups, setPageGroups] = useState<GroupType[] | null>(null);
+  // This state is primarily for the interval to re-trigger updates for live matches
+  const [currentTimeForInterval, setCurrentTimeForInterval] = useState<string | null>(null);
+
 
   useEffect(() => {
-    setUpcomingLiveMatches(
-      mockMatches
-        .filter(match => new Date(match.date) >= new Date(currentTimestamp) || match.status === 'live')
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    );
+    const now = new Date();
     
+    setPageGroups(importedMockGroups);
+
+    const filteredMatches = importedMockMatches
+      .filter(match => {
+        const matchDate = new Date(match.date);
+        return matchDate >= now || match.status === 'live';
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    setUpcomingLiveMatches(filteredMatches);
+    
+    setCurrentTimeForInterval(now.toISOString());
+
     const interval = setInterval(() => {
-      setCurrentTimestamp(new Date().toISOString());
+      const newNow = new Date();
+      setCurrentTimeForInterval(newNow.toISOString());
+      const updatedFilteredMatches = importedMockMatches
+        .filter(match => {
+          const matchDate = new Date(match.date);
+          return matchDate >= newNow || match.status === 'live';
+        })
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      setUpcomingLiveMatches(updatedFilteredMatches);
     }, 60000);
+
     return () => clearInterval(interval);
-  }, [currentTimestamp]);
+  }, []); 
+
+
+  if (!pageGroups) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]"> {/* Adjust height based on approx header/footer */}
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+        <p className="text-xl text-muted-foreground">Cargando datos del torneo...</p>
+      </div>
+    );
+  }
 
 
   return (
@@ -160,19 +190,19 @@ export default function HomePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Tabs defaultValue={mockGroups[0]?.id || 'group-a'} className="w-full">
+              <Tabs defaultValue={pageGroups[0]?.id || 'zona-a'} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-none border-b border-border bg-muted/30">
-                  {mockGroups.map((group: GroupType) => (
+                  {pageGroups.map((group: GroupType) => (
                     <TabsTrigger 
                       key={group.id} 
                       value={group.id}
-                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center py-2.5"
+                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center py-3"
                     >
                       {group.name} 
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                {mockGroups.map((group: GroupType) => (
+                {pageGroups.map((group: GroupType) => (
                   <TabsContent key={group.id} value={group.id} className="m-0">
                     <div className="overflow-x-auto">
                       <Table className="min-w-full">
@@ -193,8 +223,8 @@ export default function HomePage() {
                         <TableBody>
                           {group.standings.map((entry: StandingEntry) => (
                             <TableRow key={entry.team.id} className="border-border hover:bg-muted/20">
-                              <TableCell className="px-2 py-3.5 text-center font-medium">{entry.position}</TableCell>
-                              <TableCell className="px-2 py-3.5">
+                              <TableCell className="px-2 py-4 text-center font-medium">{entry.position}</TableCell>
+                              <TableCell className="px-2 py-4">
                                 <div className="flex items-center gap-2">
                                   <Image 
                                     src={entry.team.logoUrl} 
@@ -207,14 +237,14 @@ export default function HomePage() {
                                   <span className="text-sm truncate max-w-[120px] sm:max-w-none">{entry.team.name}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="px-2 py-3.5 text-center font-bold text-primary">{entry.points}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.played}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.won}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.drawn}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.lost}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.goalsFor}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.goalsAgainst}</TableCell>
-                              <TableCell className="px-2 py-3.5 text-center">{entry.goalDifference}</TableCell>
+                              <TableCell className="px-2 py-4 text-center font-bold text-primary">{entry.points}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.played}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.won}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.drawn}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.lost}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.goalsFor}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.goalsAgainst}</TableCell>
+                              <TableCell className="px-2 py-4 text-center">{entry.goalDifference}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
