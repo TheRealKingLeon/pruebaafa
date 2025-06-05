@@ -1,10 +1,12 @@
+
 import Image from 'next/image';
 import type { Match } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, ShieldAlert, ShieldCheck, Users } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Calendar, Clock } from 'lucide-react'; // Added Clock
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 interface MatchResultCardProps {
   match: Match;
@@ -14,62 +16,92 @@ export function MatchResultCard({ match }: MatchResultCardProps) {
   const matchDate = new Date(match.date);
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
-      <CardHeader className="bg-muted/30 p-4">
-        <CardTitle className="text-lg font-headline text-primary flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Users className="h-5 w-5" /> 
-            {match.groupName || match.roundName || 'Partido Amistoso'}
-          </span>
-          {match.status === 'completed' && <ShieldCheck className="h-5 w-5 text-green-500" />}
-          {match.status === 'upcoming' && <ShieldAlert className="h-5 w-5 text-yellow-500" />}
-          {match.status === 'live' && <ShieldAlert className="h-5 w-5 text-red-500 animate-pulse" />}
-        </CardTitle>
-        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-          <Calendar className="h-3 w-3" />
-          <span>{format(matchDate, "dd MMM yyyy, HH:mm", { locale: es })}</span>
+      <CardContent className="p-4 space-y-3">
+        {/* Top section: Group, Matchday, Date, Time */}
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-xs font-semibold text-primary">{match.groupName || match.roundName || 'Partido'}</p>
+            {match.matchday && <p className="text-xs text-muted-foreground">Fecha {match.matchday}</p>}
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground flex items-center justify-end">
+              <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+              <span className="truncate">{format(matchDate, "dd MMM yyyy", { locale: es })}</span>
+            </div>
+            <div className="text-xs text-muted-foreground flex items-center justify-end">
+              <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+              <span className="truncate">{format(matchDate, "HH:mm'hs'", { locale: es })}</span>
+            </div>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          {/* Team 1 */}
-          <div className="flex items-center gap-2 w-2/5">
-            <Image 
-              src={match.team1.logoUrl} 
-              alt={`${match.team1.name} logo`} 
-              width={32} 
-              height={32} 
-              className="rounded-full object-contain"
-              data-ai-hint={match.team1.name.toLowerCase().includes("river") || match.team1.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
-            />
-            <span className="font-medium truncate">{match.team1.name}</span>
+
+        <Separator />
+
+        {/* Main content: Teams and Score/VS */}
+        <div className="flex items-stretch"> {/* Main flex row for teams and VS */}
+          {/* Left part: Teams stacked vertically */}
+          <div className="flex-grow space-y-2 pr-2">
+            {/* Team 1 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 min-w-0">
+                <Image 
+                  src={match.team1.logoUrl} 
+                  alt={`${match.team1.name} logo`} 
+                  width={28} 
+                  height={28} 
+                  className="rounded-full object-contain flex-shrink-0"
+                  data-ai-hint={match.team1.name.toLowerCase().includes("river") || match.team1.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                />
+                <span className="font-medium text-sm truncate">{match.team1.name}</span>
+              </div>
+              {/* Placeholder for Player 1 Image - can be uncommented and styled later */}
+              {/* <div className="w-8 h-8 bg-muted rounded-full flex-shrink-0 ml-2 hidden sm:flex items-center justify-center text-xs">P1</div> */}
+            </div>
+
+            {/* Team 2 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 min-w-0">
+                <Image 
+                  src={match.team2.logoUrl} 
+                  alt={`${match.team2.name} logo`} 
+                  width={28} 
+                  height={28} 
+                  className="rounded-full object-contain flex-shrink-0"
+                  data-ai-hint={match.team2.name.toLowerCase().includes("river") || match.team2.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                />
+                <span className="font-medium text-sm truncate">{match.team2.name}</span>
+              </div>
+              {/* Placeholder for Player 2 Image - can be uncommented and styled later */}
+              {/* <div className="w-8 h-8 bg-muted rounded-full flex-shrink-0 ml-2 hidden sm:flex items-center justify-center text-xs">P2</div> */}
+            </div>
           </div>
 
-          {/* Score / Status */}
-          <div className="text-center">
+          {/* Right part: VS / Score, aligned to the right of the teams block */}
+          <div className="w-1/5 flex flex-col items-center justify-center text-center border-l border-border pl-2">
             {match.status === 'completed' ? (
-              <span className="text-2xl font-bold text-primary">
-                {match.score1} - {match.score2}
-              </span>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-primary">{match.score1}</span>
+                <span className="text-xs text-muted-foreground">-</span>
+                <span className="text-lg font-bold text-primary">{match.score2}</span>
+              </div>
             ) : (
-              <Badge variant={match.status === 'upcoming' ? 'secondary' : 'destructive'} className="uppercase">
-                {match.status === 'upcoming' ? 'Próximo' : 'En Vivo'}
-              </Badge>
+              <span className="text-md font-semibold text-muted-foreground">VS</span>
             )}
           </div>
-
-          {/* Team 2 */}
-          <div className="flex items-center gap-2 w-2/5 justify-end">
-            <span className="font-medium truncate text-right">{match.team2.name}</span>
-            <Image 
-              src={match.team2.logoUrl} 
-              alt={`${match.team2.name} logo`} 
-              width={32} 
-              height={32} 
-              className="rounded-full object-contain"
-              data-ai-hint={match.team2.name.toLowerCase().includes("river") || match.team2.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
-            />
-          </div>
         </div>
+        
+        <Separator />
+        
+        {/* Bottom: Status Badge */}
+        <div className="text-center pt-1">
+            <Badge 
+                variant={match.status === 'upcoming' ? 'secondary' : (match.status === 'live' ? 'destructive' : 'default')} 
+                className="uppercase text-xs px-3 py-1"
+            >
+                {match.status === 'upcoming' ? 'Próximo' : (match.status === 'live' ? 'En Vivo' : 'Finalizado')}
+            </Badge>
+        </div>
+
       </CardContent>
     </Card>
   );
