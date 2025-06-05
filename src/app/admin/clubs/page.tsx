@@ -8,7 +8,7 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle, UserCog } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle, UserCog, UploadCloud } from 'lucide-react';
 import type { Team } from '@/types'; 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ImportClubsDialog } from '@/components/admin/clubs/ImportClubsDialog'; // Import the new dialog
 
 interface ClubDocument extends Omit<Team, 'player' | 'id'> { 
   id: string;
@@ -37,6 +38,7 @@ export default function ManageClubsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const fetchClubs = useCallback(async () => {
     setIsLoading(true);
@@ -83,6 +85,11 @@ export default function ManageClubsPage() {
       });
     }
   };
+  
+  const handleImportSuccess = () => {
+    fetchClubs(); // Re-fetch clubs after successful import
+    setIsImportModalOpen(false); // Close the modal
+  };
 
   if (isLoading) {
     return (
@@ -107,13 +114,18 @@ export default function ManageClubsPage() {
   if (!clubs || clubs.length === 0) {
     return (
        <div className="space-y-8">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <SectionTitle>Gestionar Clubes</SectionTitle>
-          <Button asChild>
-            <Link href="/admin/clubs/add">
-              <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsImportModalOpen(true)} variant="outline">
+              <UploadCloud className="mr-2 h-5 w-5" /> Importar desde CSV
+            </Button>
+            <Button asChild>
+              <Link href="/admin/clubs/add">
+                <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
+              </Link>
+            </Button>
+          </div>
         </div>
         <Card className="shadow-lg">
           <CardHeader>
@@ -124,23 +136,33 @@ export default function ManageClubsPage() {
             <div className="text-center py-10">
               <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No hay clubes para mostrar.</p>
-              <p className="text-sm text-muted-foreground mt-2">Puedes empezar añadiendo uno nuevo.</p>
+              <p className="text-sm text-muted-foreground mt-2">Puedes empezar añadiendo uno nuevo o importando desde un archivo CSV.</p>
             </div>
           </CardContent>
         </Card>
+        <ImportClubsDialog 
+            isOpen={isImportModalOpen} 
+            onOpenChange={setIsImportModalOpen} 
+            onImportSuccess={handleImportSuccess} 
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-2">
         <SectionTitle>Gestionar Clubes</SectionTitle>
-        <Button asChild>
-          <Link href="/admin/clubs/add">
-            <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={() => setIsImportModalOpen(true)} variant="outline">
+              <UploadCloud className="mr-2 h-5 w-5" /> Importar desde CSV
+            </Button>
+            <Button asChild>
+              <Link href="/admin/clubs/add">
+                <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
+              </Link>
+            </Button>
+        </div>
       </div>
 
       <Card className="shadow-lg">
@@ -219,6 +241,11 @@ export default function ManageClubsPage() {
       <p className="text-sm text-muted-foreground italic mt-6">
         Los clubes se gestionan en la base de datos. Para asignar o editar un jugador de un club, usa el botón <UserCog className="inline h-4 w-4" />.
       </p>
+      <ImportClubsDialog 
+        isOpen={isImportModalOpen} 
+        onOpenChange={setIsImportModalOpen} 
+        onImportSuccess={handleImportSuccess} 
+      />
     </div>
   );
 }

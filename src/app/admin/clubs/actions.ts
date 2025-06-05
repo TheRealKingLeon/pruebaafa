@@ -2,9 +2,10 @@
 'use server';
 
 import { db, getFirebaseDebugInfo } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Team } from '@/types';
-import type { AddClubFormInput, EditClubFormInput } from './schemas';
+import { addClubSchema, type AddClubFormInput, type EditClubFormInput } from './schemas';
+import { z } from 'zod';
 
 // Helper function to check for duplicate club name (case-insensitive)
 async function isClubNameDuplicate(name: string, excludeClubId?: string): Promise<boolean> {
@@ -162,3 +163,132 @@ export async function deleteClubAction(clubId: string) {
   }
 }
 
+// Type for CSV import data
+export interface ClubImportData {
+  name: string;
+  logoUrl: string;
+}
+
+export interface ImportClubResultDetail {
+  lineNumber: number;
+  clubName?: string;
+  status: 'imported' | 'skipped' | 'error';
+  reason?: string;
+}
+
+export interface ImportClubsResult {
+  success: boolean;
+  message: string;
+  importedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  details: ImportClubResultDetail[];
+}
+
+// Action to import clubs from CSV data
+export async function importClubsAction(clubsToImport: ClubImportData[]): Promise<ImportClubsResult> {
+  console.log("[Server Action] importClubsAction called with", clubsToImport.length, "clubs.");
+  const debugInfo = getFirebaseDebugInfo();
+  if (!debugInfo.isDbInitialized || !db) {
+    return {
+      success: false,
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`,
+      importedCount: 0,
+      skippedCount: clubsToImport.length,
+      errorCount: 0,
+      details: clubsToImport.map((club, index) => ({
+        lineNumber: index + 1,
+        clubName: club.name,
+        status: 'skipped',
+        reason: 'Error de configuración de base de datos.',
+      })),
+    };
+  }
+
+  let importedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+  const details: ImportClubResultDetail[] = [];
+
+  // Firestore allows a maximum of 500 writes in a single batch.
+  // Process in chunks if necessary, though for typical CSVs, this might be fine.
+  // For extreme simplicity here, not batching writes yet. Could be a future enhancement.
+
+  for (let i = 0; i < clubsToImport.length; i++) {
+    const clubData = clubsToImport[i];
+    const lineNumber = i + 1;
+
+    // Validate using Zod schema for individual club data
+    const validationResult = addClubSchema.safeParse(clubData);
+    if (!validationResult.success) {
+      errorCount++;
+      skippedCount++;
+      details.push({
+        lineNumber,
+        clubName: clubData.name || 'Nombre no proporcionado',
+        status: 'error',
+        reason: `Datos inválidos: ${validationResult.error.errors.map(e => e.message).join(', ')}`,
+      });
+      continue;
+    }
+
+    const validatedData = validationResult.data;
+
+    try {
+      if (await isClubNameDuplicate(validatedData.name)) {
+        skippedCount++;
+        details.push({
+          lineNumber,
+          clubName: validatedData.name,
+          status: 'skipped',
+          reason: `El club "${validatedData.name}" ya existe.`,
+        });
+        continue;
+      }
+
+      const newClubDoc = {
+        ...validatedData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, "equipos"), newClubDoc);
+      importedCount++;
+      details.push({
+        lineNumber,
+        clubName: validatedData.name,
+        status: 'imported',
+      });
+    } catch (error) {
+      errorCount++;
+      skippedCount++;
+      let errorMessage = "Error desconocido al añadir el club a Firestore.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      details.push({
+        lineNumber,
+        clubName: validatedData.name,
+        status: 'error',
+        reason: errorMessage,
+      });
+      console.error(`[Server Action] Error adding club "${validatedData.name}" from CSV:`, error);
+    }
+  }
+
+  const overallSuccess = importedCount > 0;
+  let message = `${importedCount} clubes importados.`;
+  if (skippedCount > 0) message += ` ${skippedCount} omitidos.`;
+  if (errorCount > 0 && skippedCount === 0) message += ` ${errorCount} con errores.`;
+  else if (errorCount > 0 && skippedCount > 0) message = `${importedCount} clubes importados, ${skippedCount} omitidos (incluyendo ${errorCount} con errores de importación).`;
+
+
+  console.log("[Server Action] importClubsAction finished. Result:", { importedCount, skippedCount, errorCount });
+  return {
+    success: overallSuccess,
+    message,
+    importedCount,
+    skippedCount,
+    errorCount,
+    details,
+  };
+}
