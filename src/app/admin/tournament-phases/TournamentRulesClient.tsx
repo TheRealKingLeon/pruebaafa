@@ -12,10 +12,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Save, AlertTriangle, Trash2, GripVertical } from 'lucide-react';
+import { Save, AlertTriangle, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveTournamentRulesAction } from '../tournament-settings/actions';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect } from 'react';
@@ -34,8 +34,8 @@ const initialTiebreakerCriteria: Record<TiebreakerCriterionKey, string> = {
 const defaultTiebreakers: TiebreakerRule[] = (Object.keys(initialTiebreakerCriteria) as TiebreakerCriterionKey[]).map((key, index) => ({
   id: key,
   name: initialTiebreakerCriteria[key],
-  priority: index + 1, // Default sequential priority
-  enabled: index < 3, // Enable first 3 by default as an example
+  priority: index < 3 ? index + 1 : 0, // Enable first 3 by default, others 0 (disabled)
+  enabled: index < 3, 
 }));
 
 interface SortableTiebreakerItemProps {
@@ -44,10 +44,9 @@ interface SortableTiebreakerItemProps {
   control: any; // Control from react-hook-form
   register: any; // Register from react-hook-form
   errors: any; // Errors from react-hook-form
-  setValue: Function;
 }
 
-function SortableTiebreakerItem({ item, index, control, register, errors, setValue }: SortableTiebreakerItemProps) {
+function SortableTiebreakerItem({ item, index, control, register, errors }: SortableTiebreakerItemProps) {
   const {
     attributes,
     listeners,
@@ -55,7 +54,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.fieldId }); // Use fieldId for useSortable
+  } = useSortable({ id: item.fieldId }); 
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -76,9 +75,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
           <Checkbox
             id={`tiebreaker-${item.id}-enabled`}
             checked={field.value}
-            onCheckedChange={(checked) => {
-                field.onChange(checked);
-            }}
+            onCheckedChange={field.onChange}
             className="mr-2"
           />
         )}
@@ -89,12 +86,10 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
       <input
         type="hidden"
         {...register(`tiebreakers.${index}.id`)}
-        value={item.id}
       />
       <input
         type="hidden"
         {...register(`tiebreakers.${index}.name`)}
-        value={item.name}
       />
        <Input
         id={`tiebreaker-${item.id}-priority`}
@@ -102,7 +97,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
         min="0"
         {...register(`tiebreakers.${index}.priority`)}
         className={`w-20 text-center ${errors?.tiebreakers?.[index]?.priority ? 'border-destructive' : ''}`}
-        disabled={!item.enabled} // Disable priority if not enabled
+        disabled={!item.enabled} 
       />
     </div>
   );
@@ -117,12 +112,12 @@ export function TournamentRulesClient() {
       pointsForWin: 3,
       pointsForDraw: 1,
       pointsForLoss: 0,
-      roundRobinType: 'one-way', // Default to one-way
+      roundRobinType: 'one-way', 
       tiebreakers: defaultTiebreakers,
     },
   });
 
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, move } = useFieldArray({
     control: form.control,
     name: "tiebreakers",
     keyName: "fieldId" 
@@ -135,52 +130,47 @@ export function TournamentRulesClient() {
     })
   );
 
-  const handleDragEnd = (event: any) => {
+  const updatePriorities = (currentTiebreakers: TiebreakerRule[]) => {
+    const updated = [...currentTiebreakers];
+    let enabledPriorityCounter = 1;
+    
+    // First, assign priorities to enabled items based on their current order
+    updated.forEach((tb) => {
+      if (tb.enabled) {
+        tb.priority = enabledPriorityCounter++;
+      } else {
+        tb.priority = 0; // Disabled items get priority 0
+      }
+    });
+    return updated;
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (active.id !== over?.id && over) {
       const oldIndex = fields.findIndex((field) => field.fieldId === active.id);
       const newIndex = fields.findIndex((field) => field.fieldId === over.id);
       move(oldIndex, newIndex);
       
-      const currentTiebreakers = form.getValues('tiebreakers');
-      const updatedTiebreakers = currentTiebreakers.map((tb, idx) => ({
-        ...tb,
-        priority: idx + 1,
-      }));
-      form.setValue('tiebreakers', updatedTiebreakers, { shouldValidate: true, shouldDirty: true });
+      // After moving, re-evaluate and set all priorities
+      const newOrderedTiebreakers = arrayMove(form.getValues('tiebreakers'), oldIndex, newIndex);
+      const finalPrioritizedTiebreakers = updatePriorities(newOrderedTiebreakers);
+      form.setValue('tiebreakers', finalPrioritizedTiebreakers, { shouldValidate: true, shouldDirty: true });
     }
   };
   
   useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      if (name && name.startsWith('tiebreakers') && (type === 'change')) {
-        const tiebreakers = form.getValues('tiebreakers');
-        const enabledTiebreakers = tiebreakers
-            .map((tb, index) => ({ ...tb, originalIndex: index })) 
-            .filter(tb => tb.enabled);
-
-        enabledTiebreakers.sort((a, b) => {
-            if (a.priority !== b.priority) return a.priority - b.priority;
-            return a.originalIndex - b.originalIndex;
-        });
+    // This effect reacts to changes in the 'enabled' status of any tiebreaker
+    // or changes to the tiebreakers array itself (e.g., after dragEnd setValue).
+    const subscription = form.watch((values, { name, type }) => {
+      if (name && name.startsWith('tiebreakers') && (name.endsWith('.enabled') || type === 'change')) {
+        const currentTiebreakers = form.getValues('tiebreakers');
+        const rePrioritized = updatePriorities(currentTiebreakers);
         
-        const updatedTiebreakers = [...tiebreakers];
-        let currentPriority = 1;
-
-        enabledTiebreakers.forEach(enabledTb => {
-            const originalTbIndex = enabledTb.originalIndex;
-            if (updatedTiebreakers[originalTbIndex]) {
-                 updatedTiebreakers[originalTbIndex].priority = currentPriority++;
-            }
-        });
-        
-        updatedTiebreakers.forEach(tb => {
-            if (!tb.enabled) {
-                tb.priority = 0; 
-            }
-        });
-
-        form.setValue('tiebreakers', updatedTiebreakers, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+        // Check if arrays are different before setting to avoid infinite loops
+        if (JSON.stringify(rePrioritized) !== JSON.stringify(currentTiebreakers)) {
+            form.setValue('tiebreakers', rePrioritized, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -188,14 +178,13 @@ export function TournamentRulesClient() {
 
 
   const onSubmit: SubmitHandler<TournamentRulesFormInput> = async (data) => {
-    const activeTiebreakers = data.tiebreakers
-        .filter(tb => tb.enabled)
-        .sort((a, b) => a.priority - b.priority) 
-        .map((tb, index) => ({ ...tb, priority: index + 1 })); 
-
+    // The data passed here should already have correct priorities due to resolver & useEffect/handleDragEnd.
+    // However, we can re-process to be absolutely sure the data sent to the server is clean.
+    const processedTiebreakers = updatePriorities(data.tiebreakers);
+    
     const payload = {
         ...data,
-        tiebreakers: activeTiebreakers
+        tiebreakers: processedTiebreakers.filter(tb => tb.enabled) // Send only enabled tiebreakers
     };
     
     console.log("Form data submitted to action:", JSON.stringify(payload, null, 2));
@@ -203,11 +192,9 @@ export function TournamentRulesClient() {
 
     if (result.success) {
       toast({
-        title: "Configuración Guardada",
-        description: result.message,
+        title: "Configuración Guardada (Simulación)",
+        description: result.message + " Los datos aún no se persisten en la base de datos.",
       });
-      // Consider closing the dialog here if it's in a dialog context
-      // document.getElementById('closeDialogButtonId')?.click(); // If DialogClose has an id
     } else {
       toast({
         title: "Error al Guardar",
@@ -236,7 +223,7 @@ export function TournamentRulesClient() {
                     <FormItem>
                       <FormLabel>Puntos por Victoria</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} className={`mt-1 ${form.formState.errors.pointsForWin ? 'border-destructive' : ''}`} />
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value,10))} className={`mt-1 ${form.formState.errors.pointsForWin ? 'border-destructive' : ''}`} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -249,7 +236,7 @@ export function TournamentRulesClient() {
                     <FormItem>
                       <FormLabel>Puntos por Empate</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} className={`mt-1 ${form.formState.errors.pointsForDraw ? 'border-destructive' : ''}`} />
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value,10))} className={`mt-1 ${form.formState.errors.pointsForDraw ? 'border-destructive' : ''}`} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -262,7 +249,7 @@ export function TournamentRulesClient() {
                     <FormItem>
                       <FormLabel>Puntos por Derrota</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} className={`mt-1 ${form.formState.errors.pointsForLoss ? 'border-destructive' : ''}`} />
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value,10))} className={`mt-1 ${form.formState.errors.pointsForLoss ? 'border-destructive' : ''}`} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -317,9 +304,9 @@ export function TournamentRulesClient() {
             <section>
               <h3 className="text-lg font-semibold mb-1 text-foreground">Criterios de Desempate</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Habilita los criterios y arrastra para ordenar su prioridad. La prioridad se reasignará automáticamente.
+                Habilita los criterios y arrastra para ordenar su prioridad. La prioridad se asignará automáticamente.
               </p>
-              {form.formState.errors.tiebreakers && typeof form.formState.errors.tiebreakers === 'object' && !Array.isArray(form.formState.errors.tiebreakers) && (
+              {form.formState.errors.tiebreakers?.message && (
                    <div className="p-3 mb-4 bg-destructive/10 border border-destructive text-destructive text-sm rounded-md flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0"/>
                       <span>{form.formState.errors.tiebreakers.message}</span>
@@ -331,23 +318,23 @@ export function TournamentRulesClient() {
                   {fields.map((field, index) => (
                     <SortableTiebreakerItem
                       key={field.fieldId} 
-                      item={field as any} 
+                      item={{...field, ...form.getValues(`tiebreakers.${index}`)}} // Pass current field values
                       index={index}
                       control={form.control}
                       register={form.register}
                       errors={form.formState.errors}
-                      setValue={form.setValue}
                     />
                   ))}
                 </SortableContext>
               </DndContext>
-              {fields.map((_, index) => (
+              {/* Display field-specific errors for priority if they exist */}
+              {fields.map((field, index) => (
                 form.formState.errors?.tiebreakers?.[index]?.priority && (
-                  <p key={`err-${index}`} className="text-sm text-destructive mt-1">
-                    Error en prioridad para el criterio "{form.getValues(`tiebreakers.${index}.name`)}": {form.formState.errors.tiebreakers[index].priority.message}
+                  <p key={`err-prio-${field.id}`} className="text-sm text-destructive mt-1">
+                    Error en prioridad para "{field.name}": {form.formState.errors.tiebreakers[index].priority.message}
                   </p>
-                )
-              ))}
+                )))}
+
             </section>
           <DialogFooter className="pt-4 border-t">
             <DialogClose asChild>
@@ -363,3 +350,5 @@ export function TournamentRulesClient() {
     </>
   );
 }
+
+    
