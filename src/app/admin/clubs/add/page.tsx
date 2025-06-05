@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function AddClubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AddClubFormInput>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AddClubFormInput>({
     resolver: zodResolver(addClubSchema),
     defaultValues: {
       name: "",
@@ -27,18 +27,29 @@ export default function AddClubPage() {
   });
 
   const onSubmit: SubmitHandler<AddClubFormInput> = async (data) => {
-    const result = await addClubAction(data);
-    if (result.success && result.club) {
+    try {
+      console.log("Form submitted on client, calling addClubAction with data:", data);
+      const result = await addClubAction(data);
+      console.log("addClubAction result received on client:", result);
+
+      if (result.success && result.club) {
+        toast({
+          title: "Club Añadido",
+          description: `El club "${result.club.name}" ha sido añadido con ID: ${result.club.id}.`,
+        });
+        router.push('/admin/clubs');
+      } else {
+        toast({
+          title: "Error al Añadir Club",
+          description: result.message || "No se pudo añadir el club a Firestore.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error in onSubmit handler (client-side):", error);
       toast({
-        title: "Club Añadido",
-        description: `El club "${result.club.name}" ha sido añadido con ID: ${result.club.id}.`,
-      });
-      router.push('/admin/clubs'); 
-      // router.refresh(); // Removed: The target page /admin/clubs is a client component that fetches on mount.
-    } else {
-      toast({
-        title: "Error al Añadir Club",
-        description: result.message || "No se pudo añadir el club a Firestore.",
+        title: "Error Inesperado",
+        description: "Ocurrió un error al procesar la solicitud en el cliente.",
         variant: "destructive",
       });
     }
