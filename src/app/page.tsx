@@ -92,10 +92,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="space-y-16 pt-8">
+    <div className="space-y-12 pt-8">
 
       {upcomingLiveMatches.length > 0 && (
-        <section className="mt-8 mb-12">
+        <section className="mt-8">
           <SectionTitle>PRÓXIMOS ENCUENTROS</SectionTitle>
           <Carousel
             opts={{
@@ -304,5 +304,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
