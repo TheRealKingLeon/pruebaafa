@@ -43,7 +43,7 @@ export default function CompetitionPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle>Formato de Competición</SectionTitle>
+      <SectionTitle>FASE DE TORNEO</SectionTitle>
 
       <Tabs defaultValue="group-stage" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto">
