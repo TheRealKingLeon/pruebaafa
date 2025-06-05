@@ -149,7 +149,7 @@ export default function ParticipantsPage() {
                       <li key={team.id}>
                         <button
                           onClick={() => handleSelectTeam(team)}
-                          className={`w-full flex items-center gap-3 p-2 sm:p-3 rounded-md text-left transition-colors duration-150 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
+                          className={`group w-full flex items-center gap-3 p-2 sm:p-3 rounded-md text-left transition-colors duration-150 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
                             ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card hover:bg-muted text-card-foreground'}`}
                           aria-current={selectedClubLogo === team.logoUrl && selectedPlayer === team.player ? "page" : undefined}
                         >
@@ -165,7 +165,12 @@ export default function ParticipantsPage() {
                           <div className="flex-grow overflow-hidden">
                             <span className="font-medium text-sm truncate block">{team.name}</span>
                             {team.player ? (
-                              <span className="text-xs text-muted-foreground truncate block group-hover:text-primary-foreground/80 ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player ? 'text-primary-foreground/80' : ''}">
+                              <span className={`text-xs truncate block 
+                                ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player 
+                                  ? 'text-primary-foreground' // Fully opaque white when selected
+                                  : 'text-muted-foreground group-hover:text-primary-foreground/80' // Default and non-selected hover state
+                                }`
+                              }>
                                 {team.player.name} (@{team.player.gamerTag})
                               </span>
                             ) : (
@@ -200,5 +205,3 @@ export default function ParticipantsPage() {
     </div>
   );
 }
-
-    
