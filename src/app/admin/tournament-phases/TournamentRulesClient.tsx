@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Save, AlertTriangle, GripVertical } from 'lucide-react';
+import { Save, AlertTriangle, GripVertical, FileCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveTournamentRulesAction } from '../tournament-settings/actions';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
@@ -34,19 +34,20 @@ const initialTiebreakerCriteria: Record<TiebreakerCriterionKey, string> = {
 const defaultTiebreakers: TiebreakerRule[] = (Object.keys(initialTiebreakerCriteria) as TiebreakerCriterionKey[]).map((key, index) => ({
   id: key,
   name: initialTiebreakerCriteria[key],
-  priority: index < 3 ? index + 1 : 0, // Enable first 3 by default, others 0 (disabled)
+  priority: index < 3 ? index + 1 : 0, 
   enabled: index < 3, 
 }));
 
 interface SortableTiebreakerItemProps {
-  item: TiebreakerRule & { fieldId: string }; // fieldId is from useFieldArray
+  item: TiebreakerRule & { fieldId: string }; 
   index: number;
-  control: any; // Control from react-hook-form
-  register: any; // Register from react-hook-form
-  errors: any; // Errors from react-hook-form
+  control: any; 
+  register: any; 
+  errors: any; 
+  getValues: any;
 }
 
-function SortableTiebreakerItem({ item, index, control, register, errors }: SortableTiebreakerItemProps) {
+function SortableTiebreakerItem({ item, index, control, register, errors, getValues }: SortableTiebreakerItemProps) {
   const {
     attributes,
     listeners,
@@ -130,16 +131,21 @@ export function TournamentRulesClient() {
     })
   );
 
-  const updatePriorities = (currentTiebreakers: TiebreakerRule[]) => {
+  useEffect(() => {
+    if (Object.keys(form.formState.errors).length > 0) {
+      console.log("Form validation errors:", form.formState.errors);
+    }
+  }, [form.formState.errors]);
+
+  const updatePriorities = (currentTiebreakers: TiebreakerRule[]): TiebreakerRule[] => {
     const updated = [...currentTiebreakers];
     let enabledPriorityCounter = 1;
     
-    // First, assign priorities to enabled items based on their current order
     updated.forEach((tb) => {
       if (tb.enabled) {
         tb.priority = enabledPriorityCounter++;
       } else {
-        tb.priority = 0; // Disabled items get priority 0
+        tb.priority = 0; 
       }
     });
     return updated;
@@ -152,7 +158,6 @@ export function TournamentRulesClient() {
       const newIndex = fields.findIndex((field) => field.fieldId === over.id);
       move(oldIndex, newIndex);
       
-      // After moving, re-evaluate and set all priorities
       const newOrderedTiebreakers = arrayMove(form.getValues('tiebreakers'), oldIndex, newIndex);
       const finalPrioritizedTiebreakers = updatePriorities(newOrderedTiebreakers);
       form.setValue('tiebreakers', finalPrioritizedTiebreakers, { shouldValidate: true, shouldDirty: true });
@@ -160,14 +165,11 @@ export function TournamentRulesClient() {
   };
   
   useEffect(() => {
-    // This effect reacts to changes in the 'enabled' status of any tiebreaker
-    // or changes to the tiebreakers array itself (e.g., after dragEnd setValue).
     const subscription = form.watch((values, { name, type }) => {
       if (name && name.startsWith('tiebreakers') && (name.endsWith('.enabled') || type === 'change')) {
         const currentTiebreakers = form.getValues('tiebreakers');
         const rePrioritized = updatePriorities(currentTiebreakers);
         
-        // Check if arrays are different before setting to avoid infinite loops
         if (JSON.stringify(rePrioritized) !== JSON.stringify(currentTiebreakers)) {
             form.setValue('tiebreakers', rePrioritized, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
         }
@@ -178,16 +180,15 @@ export function TournamentRulesClient() {
 
 
   const onSubmit: SubmitHandler<TournamentRulesFormInput> = async (data) => {
-    // The data passed here should already have correct priorities due to resolver & useEffect/handleDragEnd.
-    // However, we can re-process to be absolutely sure the data sent to the server is clean.
+    console.log("Form.handleSubmit está llamando a onSubmit con datos:", data);
+    
     const processedTiebreakers = updatePriorities(data.tiebreakers);
     
     const payload = {
         ...data,
-        tiebreakers: processedTiebreakers.filter(tb => tb.enabled) // Send only enabled tiebreakers
+        tiebreakers: processedTiebreakers.filter(tb => tb.enabled) 
     };
     
-    console.log("Form data submitted to action:", JSON.stringify(payload, null, 2));
     const result = await saveTournamentRulesAction(payload);
 
     if (result.success) {
@@ -203,16 +204,19 @@ export function TournamentRulesClient() {
       });
     }
   };
+  console.log("TournamentRulesClient renderizando, errores:", form.formState.errors);
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-2xl font-headline text-primary">Configuración de Reglas de Fase de Grupos</DialogTitle>
+        <DialogTitle className="text-2xl font-headline text-primary flex items-center gap-2">
+            <FileCog className="h-6 w-6" />
+            Configuración de Reglas de Fase de Grupos
+        </DialogTitle>
         <DialogDescription>Define el sistema de puntuación, modalidad y criterios de desempate.</DialogDescription>
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-            {/* Puntos por Partido */}
             <section>
               <h3 className="text-lg font-semibold mb-3 text-foreground">Sistema de Puntuación</h3>
               <div className="grid sm:grid-cols-3 gap-4">
@@ -260,7 +264,6 @@ export function TournamentRulesClient() {
 
             <Separator />
             
-            {/* Modalidad Round Robin */}
             <section>
               <h3 className="text-lg font-semibold mb-3 text-foreground">Modalidad de Fase de Grupos</h3>
               <FormField
@@ -300,15 +303,15 @@ export function TournamentRulesClient() {
 
             <Separator />
 
-            {/* Criterios de Desempate */}
             <section>
               <h3 className="text-lg font-semibold mb-1 text-foreground">Criterios de Desempate</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Habilita los criterios y arrastra para ordenar su prioridad. La prioridad se asignará automáticamente.
               </p>
-              {form.formState.errors.tiebreakers?.message && (
+              {form.formState.errors.tiebreakers && typeof form.formState.errors.tiebreakers === 'object' && 'message' in form.formState.errors.tiebreakers && (
                    <div className="p-3 mb-4 bg-destructive/10 border border-destructive text-destructive text-sm rounded-md flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0"/>
+                      { /* @ts-ignore */ }
                       <span>{form.formState.errors.tiebreakers.message}</span>
                   </div>
               )}
@@ -318,23 +321,28 @@ export function TournamentRulesClient() {
                   {fields.map((field, index) => (
                     <SortableTiebreakerItem
                       key={field.fieldId} 
-                      item={{...field, ...form.getValues(`tiebreakers.${index}`)}} // Pass current field values
+                      item={{...field, ...form.getValues(`tiebreakers.${index}`)}}
                       index={index}
                       control={form.control}
                       register={form.register}
                       errors={form.formState.errors}
+                      getValues={form.getValues} // Pass getValues to SortableTiebreakerItem
                     />
                   ))}
                 </SortableContext>
               </DndContext>
-              {/* Display field-specific errors for priority if they exist */}
-              {fields.map((field, index) => (
-                form.formState.errors?.tiebreakers?.[index]?.priority && (
-                  <p key={`err-prio-${field.id}`} className="text-sm text-destructive mt-1">
-                    Error en prioridad para "{field.name}": {form.formState.errors.tiebreakers[index].priority.message}
-                  </p>
-                )))}
-
+              {fields.map((field, index) => {
+                 const tiebreakerError = form.formState.errors?.tiebreakers?.[index];
+                 if (tiebreakerError && typeof tiebreakerError === 'object' && 'priority' in tiebreakerError && tiebreakerError.priority) {
+                    return (
+                        <p key={`err-prio-${field.id}`} className="text-sm text-destructive mt-1">
+                        { /* @ts-ignore */ }
+                        Error en prioridad para "{field.name}": {tiebreakerError.priority.message}
+                        </p>
+                    );
+                 }
+                 return null;
+              })}
             </section>
           <DialogFooter className="pt-4 border-t">
             <DialogClose asChild>
@@ -350,5 +358,3 @@ export function TournamentRulesClient() {
     </>
   );
 }
-
-    
