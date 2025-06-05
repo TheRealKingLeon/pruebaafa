@@ -10,17 +10,15 @@ import type {
   StandingEntry, 
   PlayoffFixture, 
   TournamentRules,
-  // PlayoffRound type is not used if getActivePlayoffRounds is removed
-  // TiebreakerCriterionKey
 } from '@/types';
-import { loadTournamentRulesAction } from '../admin/tournament-settings/actions'; // Re-use existing action
+import { loadTournamentRulesAction } from '../admin/tournament-settings/actions';
 
 // Helper to fetch team details in bulk
 async function getTeamsDetailsMap(teamIds: string[]): Promise<Map<string, Team>> {
   const teamsMap = new Map<string, Team>();
   if (!teamIds || teamIds.length === 0) return teamsMap;
 
-  const uniqueTeamIds = Array.from(new Set(teamIds.filter(id => id))); // Filter out undefined/null ids
+  const uniqueTeamIds = Array.from(new Set(teamIds.filter(id => id))); 
 
   const MAX_IDS_PER_QUERY = 30; 
   for (let i = 0; i < uniqueTeamIds.length; i += MAX_IDS_PER_QUERY) {
@@ -37,22 +35,35 @@ async function getTeamsDetailsMap(teamIds: string[]): Promise<Map<string, Team>>
 }
 
 // Helper to convert Firestore Timestamps in match objects
-function convertMatchTimestamps(matchData: any): Omit<Match, 'team1' | 'team2' | 'createdAt' | 'updatedAt'> & { team1Id: string, team2Id: string, createdAt?: Timestamp, updatedAt?: Timestamp, date?: Timestamp | string | null } {
+function convertMatchTimestamps(matchData: any): Omit<Match, 'team1' | 'team2' | 'createdAt' | 'updatedAt'> & { team1Id: string, team2Id: string, createdAt?: Timestamp | string, updatedAt?: Timestamp | string, date?: Timestamp | string | null } {
   return {
     ...matchData,
-    id: matchData.id, // Ensure id is present
+    id: matchData.id, 
     date: matchData.date instanceof Timestamp ? matchData.date.toDate().toISOString() : matchData.date,
     createdAt: matchData.createdAt instanceof Timestamp ? matchData.createdAt.toDate().toISOString() : matchData.createdAt,
     updatedAt: matchData.updatedAt instanceof Timestamp ? matchData.updatedAt.toDate().toISOString() : matchData.updatedAt,
   };
 }
 
+// Helper to convert Firestore Timestamps in group objects
+function convertGroupTimestamps(groupData: any): Group {
+  const data = { ...groupData };
+  if (data.createdAt instanceof Timestamp) {
+    data.createdAt = data.createdAt.toDate().toISOString();
+  }
+  if (data.updatedAt instanceof Timestamp) {
+    data.updatedAt = data.updatedAt.toDate().toISOString();
+  }
+  return data as Group;
+}
+
+
 async function calculateStandings(
   groupId: string,
   teamsInGroup: Team[],
   rules: TournamentRules | null
 ): Promise<StandingEntry[]> {
-  if (!rules) { // Default rules if none are found
+  if (!rules) { 
     rules = {
       pointsForWin: 3,
       pointsForDraw: 1,
@@ -133,7 +144,7 @@ async function calculateStandings(
     entry.goalDifference = entry.goalsFor - entry.goalsAgainst;
   });
 
-  // Sort standings based on rules
+  
   const enabledTiebreakers = rules.tiebreakers.filter(tb => tb.enabled && tb.priority > 0).sort((a, b) => a.priority - b.priority);
 
   standingsArray.sort((a, b) => {
@@ -150,12 +161,8 @@ async function calculateStandings(
             case 'matchesWon':
                 if (b.won !== a.won) return b.won - a.won;
                 break;
-            // Note: 'directResult' and 'pointsCoefficient' would require more complex logic here
-            // For 'directResult', you'd need to filter matches between tied teams and recalculate.
-            // For 'pointsCoefficient', it's (points / played) if played > 0.
         }
     }
-    // Fallback sort by team name if all tiebreakers are equal
     return a.team.name.localeCompare(b.team.name);
   });
 
@@ -171,7 +178,7 @@ export async function getTournamentCompetitionData(): Promise<{
   try {
     const groupsQuery = query(collection(db, "grupos"), orderBy("name"));
     const groupsSnapshot = await getDocs(groupsQuery);
-    const rawGroups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Group));
+    const rawGroups = groupsSnapshot.docs.map(doc => convertGroupTimestamps({ id: doc.id, ...doc.data() }));
 
     const allTeamIds = new Set<string>();
     rawGroups.forEach(g => g.teamIds.forEach(tid => allTeamIds.add(tid)));
@@ -186,15 +193,22 @@ export async function getTournamentCompetitionData(): Promise<{
       const standings = await calculateStandings(rawGroup.id, groupTeams, tournamentRules);
       groupsWithStandings.push({
         ...rawGroup,
-        teams: groupTeams, // For general use, though standings also has team info
-        standings: standings, // Calculated standings
+        teams: groupTeams, 
+        standings: standings, 
       });
     }
 
-    // Fetch Playoff Fixtures
     const playoffQuery = query(collection(db, "playoff_fixtures"), orderBy("createdAt"));
     const playoffSnapshot = await getDocs(playoffQuery);
-    const rawPlayoffFixtures = playoffSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PlayoffFixture & {createdAt?: Timestamp, updatedAt?: Timestamp}));
+    const rawPlayoffFixtures = playoffSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return { 
+        id: doc.id, 
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+      } as PlayoffFixture;
+    });
     
     const playoffTeamIds = new Set<string>();
     rawPlayoffFixtures.forEach(pf => {
@@ -212,8 +226,6 @@ export async function getTournamentCompetitionData(): Promise<{
         team1LogoUrl: team1?.logoUrl,
         team2Name: team2?.name,
         team2LogoUrl: team2?.logoUrl,
-        createdAt: pf.createdAt instanceof Timestamp ? pf.createdAt.toDate().toISOString() : pf.createdAt,
-        updatedAt: pf.updatedAt instanceof Timestamp ? pf.updatedAt.toDate().toISOString() : pf.updatedAt,
       };
     });
     
@@ -233,18 +245,13 @@ export async function getTournamentHomePageData(): Promise<{
   error?: string;
 }> {
   try {
-    // Fetch upcoming/live matches
     const now = Timestamp.now();
-    // Query for matches whose date is in the future OR status is live
-    // Firestore doesn't support OR queries directly in this way.
-    // Fetch upcoming based on date and separately live based on status, then combine and sort.
-
+    
     const upcomingQuery = query(
       collection(db, "matches"), 
       where("date", ">=", now), 
       orderBy("date", "asc"),
-      // where("status", "==", "upcoming"), // Add if date alone is not enough
-      limit(10) // Limit for carousel
+      limit(10) 
     );
     const liveQuery = query(
       collection(db, "matches"),
@@ -261,8 +268,7 @@ export async function getTournamentHomePageData(): Promise<{
     const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
     
-    // Combine and deduplicate
-    const combinedRawMatchesMap = new Map<string, Omit<Match, 'team1' | 'team2'> & { team1Id: string, team2Id: string }>();
+    const combinedRawMatchesMap = new Map<string, ReturnType<typeof convertMatchTimestamps>>();
     rawLiveMatches.forEach(m => combinedRawMatchesMap.set(m.id, m));
     rawUpcomingMatches.forEach(m => {
         if (!combinedRawMatchesMap.has(m.id)) {
@@ -273,11 +279,11 @@ export async function getTournamentHomePageData(): Promise<{
     const combinedRawMatches = Array.from(combinedRawMatchesMap.values());
     combinedRawMatches.sort((a,b) => {
         if (a.date && b.date) {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
+            return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
         }
-        if (a.date) return -1; // a has date, b does not, a comes first
-        if (b.date) return 1;  // b has date, a does not, b comes first
-        return 0; // both dates are null
+        if (a.date) return -1; 
+        if (b.date) return 1;  
+        return 0; 
     });
     const limitedMatches = combinedRawMatches.slice(0,10);
 
@@ -296,10 +302,8 @@ export async function getTournamentHomePageData(): Promise<{
     })).filter(m => m.team1 && m.team2) as Match[];
 
 
-    // Fetch groups with standings (re-use part of competition data logic)
     const { groupsWithStandings: fetchedGroups, error: groupsError } = await getTournamentCompetitionData();
     if (groupsError) {
-        // Decide how to handle partial errors, for now, return empty groups
         console.warn("Error fetching groups for home page, using empty array.", groupsError);
         return { upcomingLiveMatches, groupsWithStandings: [], error: groupsError};
     }
@@ -340,11 +344,14 @@ export async function getTournamentResultsData(): Promise<{
 
     const groupsQuery = query(collection(db, "grupos"), orderBy("name"));
     const groupsSnapshot = await getDocs(groupsQuery);
-    const groupList = groupsSnapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      name: doc.data().name,
-      zoneId: doc.data().zoneId 
-    } as Pick<Group, 'id' | 'name' | 'zoneId'>));
+    const groupList = groupsSnapshot.docs.map(doc => {
+        const groupData = doc.data();
+        return {
+            id: doc.id, 
+            name: groupData.name,
+            zoneId: groupData.zoneId 
+        } as Pick<Group, 'id' | 'name' | 'zoneId'>;
+    });
 
     return { allMatches, groupList };
 
@@ -355,6 +362,4 @@ export async function getTournamentResultsData(): Promise<{
   }
 }
 
-// The getActivePlayoffRounds function was removed as it was unused and causing an error.
-// The competition page directly uses playoffFixtures from getTournamentCompetitionData.
     

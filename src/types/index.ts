@@ -40,8 +40,10 @@ export interface Group {
   name: string; // e.g., "Zona A"
   zoneId: string; // e.g., "zona-a", matches the document ID
   teamIds: string[]; // Array of Firestore document IDs from the "equipos" collection
-  createdAt?: any; // Firestore ServerTimestamp
-  updatedAt?: any; // Firestore ServerTimestamp
+  createdAt?: string; // Changed from any to string (ISO date string)
+  updatedAt?: string; // Changed from any to string (ISO date string)
+  teams?: Team[]; // Optional, if populated client-side or in service
+  standings?: StandingEntry[]; // Optional, if calculated and added
 }
 
 export interface Match {
@@ -83,8 +85,8 @@ export interface PlayoffFixture {
   team2LogoUrl?: string;
   status: 'pending_teams' | 'upcoming' | 'completed'; // status for the fixture itself
   winnerId?: string | null;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: string; // Changed from any to string
+  updatedAt?: string; // Changed from any to string
 }
 
 // Types for Tournament Rules Configuration
