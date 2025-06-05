@@ -234,8 +234,6 @@ export async function getTournamentCompetitionData(): Promise<{
       if (pf.team1Id) playoffTeamIds.add(pf.team1Id);
       if (pf.team2Id) playoffTeamIds.add(pf.team2Id);
     });
-    // Fetch details for teams involved in playoffs if they weren't already in groups.
-    // This reuses teamsMap if teams are common, or fetches new ones.
     const playoffTeamsMap = await getTeamsDetailsMap(Array.from(playoffTeamIds));
 
 
@@ -269,53 +267,61 @@ export async function getTournamentHomePageData(): Promise<{
   try {
     const now = Timestamp.now();
 
-    // Query for 'live' matches
     const liveQuery = query(
       collection(db, "matches"),
       where("status", "==", "live"),
-      // orderBy("date", "asc"), // Manual sort later
-      limit(5) 
+      limit(5)
     );
 
-    // Query for 'upcoming' matches (with a date set in the future)
     const upcomingQuery = query(
       collection(db, "matches"),
       where("status", "==", "upcoming"),
       where("date", ">=", now),
-      orderBy("date", "asc"),
-      limit(10) 
+      // orderBy("date", "asc"), // Removed for index avoidance
+      limit(10)
     );
     
-    // Query for 'pending_date' matches
     const pendingDateQuery = query(
       collection(db, "matches"),
       where("status", "==", "pending_date"),
-      orderBy("groupName", "asc"), // Order by group then matchday for some consistency
-      orderBy("matchday", "asc"),
+      // orderBy("groupName", "asc"), // Removed for index avoidance
+      // orderBy("matchday", "asc"), // Removed for index avoidance
       limit(10)
     );
 
-    const [liveSnapshot, upcomingSnapshot, pendingDateSnapshot] = await Promise.all([
-      getDocs(liveQuery),
-      getDocs(upcomingQuery),
-      getDocs(pendingDateQuery),
+    const promiseResults = await Promise.all([
+        getDocs(liveQuery),
+        getDocs(upcomingQuery),
+        getDocs(pendingDateQuery),
     ]);
     
+    const liveSnapshot = promiseResults[0];
+    const upcomingSnapshot = promiseResults[1];
+    const pendingDateSnapshot = promiseResults[2];
+    
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    const rawPendingDateMatches = pendingDateSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-
-    // Sort rawLiveMatches by date client-side as Firestore orderBy was removed to avoid index
-    rawLiveMatches.sort((a, b) => {
-      if (a.date && b.date) {
-        return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-      }
+    rawLiveMatches.sort((a, b) => { // Manual sort by date
+      if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
       if (a.date) return -1;
       if (b.date) return 1;
       return 0;
     });
 
-    // Combine and Deduplicate, prioritizing live, then upcoming with date, then pending_date
+    const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    rawUpcomingMatches.sort((a, b) => { // Manual sort by date
+        if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+        if (a.date) return -1;
+        if (b.date) return 1;
+        return 0;
+    });
+
+    const rawPendingDateMatches = pendingDateSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    rawPendingDateMatches.sort((a, b) => { // Manual sort by groupName then matchday
+        const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
+        if (groupCompare !== 0) return groupCompare;
+        return (a.matchday || 0) - (b.matchday || 0);
+    });
+
     const matchesMap = new Map<string, ReturnType<typeof convertMatchTimestamps>>();
     rawLiveMatches.forEach(m => matchesMap.set(m.id, m));
     rawUpcomingMatches.forEach(m => {
@@ -327,13 +333,12 @@ export async function getTournamentHomePageData(): Promise<{
 
     let combinedMatches = Array.from(matchesMap.values());
 
-    // Define a helper for sorting priority
     const getStatusPriority = (status: Match['status']): number => {
       switch (status) {
         case 'live': return 1;
         case 'upcoming': return 2;
         case 'pending_date': return 3;
-        case 'completed': return 4; // Should ideally be filtered out earlier
+        case 'completed': return 4;
         default: return 5;
       }
     };
@@ -346,19 +351,12 @@ export async function getTournamentHomePageData(): Promise<{
         return priorityA - priorityB;
       }
 
-      // Same priority, sort within:
-      // For 'live' and 'upcoming', sort by date (earliest first)
       if (a.status === 'live' || a.status === 'upcoming') {
         if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-        if (a.date) return -1; // a has date, b doesn't (shouldn't happen for 'upcoming' from query)
-        if (b.date) return 1;  // b has date, a doesn't
+        if (a.date) return -1;
+        if (b.date) return 1;
       }
 
-      // For 'pending_date', they are already pre-sorted by groupName, matchday from the query.
-      // If they were mixed with other null-date items, this would be where to sort them.
-      // Since map preserved original order from individual sorted arrays (if keys are unique),
-      // and we added pending_date last, their internal order should be fine if they are all 'pending_date'.
-      // If comparing two 'pending_date' matches specifically (which shouldn't happen if priorities differ unless both are pending_date):
       if (a.status === 'pending_date' && b.status === 'pending_date') {
          const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
          if (groupCompare !== 0) return groupCompare;
@@ -406,8 +404,7 @@ export async function getTournamentResultsData(): Promise<{
   error?: string;
 }> {
   try {
-    // Fetch all statuses, then sort client-side for flexibility
-    const matchesQuery = query(collection(db, "matches")/*, orderBy("date", "desc")*/); // Removing order by date for now
+    const matchesQuery = query(collection(db, "matches"));
     const matchesSnapshot = await getDocs(matchesQuery);
     const rawMatches = matchesSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
 
@@ -424,20 +421,18 @@ export async function getTournamentResultsData(): Promise<{
       team2: m.team2Id ? teamsMap.get(m.team2Id) : undefined,
     })).filter(m => m.team1 && m.team2) as Match[];
 
-    // Now sort allMatchesWithTeams
      allMatchesWithTeams.sort((a, b) => {
         const aHasDate = !!a.date;
         const bHasDate = !!b.date;
 
-        if (aHasDate && !bHasDate) return -1; // Matches with dates come first
+        if (aHasDate && !bHasDate) return -1;
         if (!aHasDate && bHasDate) return 1;  
         
-        if (aHasDate && bHasDate) { // Both have dates, sort by date
+        if (aHasDate && bHasDate) {
           const dateComparison = new Date(a.date!).getTime() - new Date(b.date!).getTime();
-          if (dateComparison !== 0) return dateComparison; // Ascending for results page overall view
+          if (dateComparison !== 0) return dateComparison; 
         }
         
-        // If dates are the same or both are null, sort by groupName, then matchday
         const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
         if (groupCompare !== 0) return groupCompare;
         
