@@ -70,11 +70,11 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
           {/* Right Column: Player Image */}
           <div className="md:col-span-5 flex items-center justify-center md:justify-end mt-4 md:mt-0">
             <Image
-              src={player.imageUrl} // This is the placeholder for now
+              src={player.imageUrl} 
               alt={player.name}
               width={300} 
-              height={300}
-              className="rounded-lg shadow-xl object-cover aspect-square border-2 border-primary/30"
+              height={400} // Increased height
+              className="rounded-lg shadow-xl object-cover" // Removed aspect-square and border classes
               data-ai-hint="esports player photo"
               priority // Prioritize loading the main player image
             />
