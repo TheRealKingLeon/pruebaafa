@@ -50,17 +50,17 @@ export interface Match {
   team2Id: string; 
   team1?: Team; 
   team2?: Team; 
-  score1?: number;
-  score2?: number;
+  score1?: number | null;
+  score2?: number | null;
   date: string | null; // Can be null initially, to be set by admin
   status: 'upcoming' | 'live' | 'completed' | 'pending_date'; // Added pending_date
   groupId?: string; // Firestore ID of the group document
-  groupName?: string; 
-  roundName?: string; 
-  matchday?: number;
-  streamUrl?: string; // Optional URL for the stream
-  createdAt?: any; 
-  updatedAt?: any; 
+  groupName?: string | null; 
+  roundName?: string | null; 
+  matchday?: number | null;
+  streamUrl?: string | null; // Optional URL for the stream
+  createdAt?: string; // Changed from any to string (ISO date string)
+  updatedAt?: string; // Changed from any to string (ISO date string)
 }
 
 export interface PlayoffRound {

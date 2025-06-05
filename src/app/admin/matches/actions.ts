@@ -29,8 +29,7 @@ async function getTeamsDetailsForMatches(teamIds: string[]): Promise<Map<string,
 
   const uniqueTeamIds = Array.from(new Set(teamIds));
   
-  // Firestore 'in' query limit is 30 IDs per query.
-  const MAX_IDS_PER_QUERY = 30; // Increased from 10 to 30 as per Firestore limits
+  const MAX_IDS_PER_QUERY = 30;
   for (let i = 0; i < uniqueTeamIds.length; i += MAX_IDS_PER_QUERY) {
     const chunk = uniqueTeamIds.slice(i, i + MAX_IDS_PER_QUERY);
     if (chunk.length > 0) {
@@ -50,7 +49,7 @@ export async function getMatchesAction(): Promise<{ matches: Match[], error?: st
     const matchesQuery = query(collection(db, MATCHES_COLLECTION), orderBy("date", "desc"));
     const snapshot = await getDocs(matchesQuery);
     
-    const matchDocsData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Omit<Match, 'team1' | 'team2'>));
+    const matchDocsData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Omit<Match, 'team1' | 'team2' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp, date?: Timestamp | string | null }));
     
     const teamIdsToFetch = new Set<string>();
     matchDocsData.forEach(m => {
@@ -65,11 +64,24 @@ export async function getMatchesAction(): Promise<{ matches: Match[], error?: st
       const team2Data = m.team2Id ? teamsDetailsMap.get(m.team2Id) : undefined;
       return {
         ...m,
-        team1: team1Data ? { id: m.team1Id!, ...team1Data } as Team : undefined,
-        team2: team2Data ? { id: m.team2Id!, ...team2Data } as Team : undefined,
-        date: m.date instanceof Timestamp ? m.date.toDate().toISOString() : m.date, // Ensure date is string for client
+        id: m.id, // ensure id is explicitly passed
+        team1Id: m.team1Id,
+        team2Id: m.team2Id,
+        team1: team1Data ? { id: m.team1Id!, name: team1Data.name, logoUrl: team1Data.logoUrl } as Team : undefined,
+        team2: team2Data ? { id: m.team2Id!, name: team2Data.name, logoUrl: team2Data.logoUrl } as Team : undefined,
+        date: m.date instanceof Timestamp ? m.date.toDate().toISOString() : (m.date as string | null),
+        status: m.status,
+        score1: m.score1 ?? null,
+        score2: m.score2 ?? null,
+        groupId: m.groupId,
+        groupName: m.groupName ?? null,
+        matchday: m.matchday ?? null,
+        roundName: m.roundName ?? null,
+        streamUrl: m.streamUrl ?? null,
+        createdAt: m.createdAt instanceof Timestamp ? m.createdAt.toDate().toISOString() : undefined,
+        updatedAt: m.updatedAt instanceof Timestamp ? m.updatedAt.toDate().toISOString() : undefined,
       };
-    }).filter(m => m.team1 && m.team2); // Filter out matches with missing team data
+    }).filter(m => m.team1 && m.team2);
 
     return { matches: populatedMatches };
   } catch (error) {
@@ -106,7 +118,7 @@ export async function getMatchByIdAction(matchId: string): Promise<{ match: Matc
       return { match: null, error: `Partido con ID ${matchId} no encontrado.` };
     }
 
-    const matchData = { id: matchSnap.id, ...matchSnap.data() } as Omit<Match, 'team1' | 'team2'>;
+    const matchData = { id: matchSnap.id, ...matchSnap.data() } as Omit<Match, 'team1' | 'team2' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp, date?: Timestamp | string | null };
     
     const teamIdsToFetch = new Set<string>();
     if (matchData.team1Id) teamIdsToFetch.add(matchData.team1Id);
@@ -118,15 +130,26 @@ export async function getMatchByIdAction(matchId: string): Promise<{ match: Matc
     const team2Data = matchData.team2Id ? teamsDetailsMap.get(matchData.team2Id) : undefined;
     
     const populatedMatch: Match = {
-      ...matchData,
-      team1: team1Data ? { id: matchData.team1Id!, ...team1Data } as Team : undefined,
-      team2: team2Data ? { id: matchData.team2Id!, ...team2Data } as Team : undefined,
-      date: matchData.date instanceof Timestamp ? matchData.date.toDate().toISOString() : matchData.date,
+      id: matchData.id,
+      team1Id: matchData.team1Id,
+      team2Id: matchData.team2Id,
+      team1: team1Data ? { id: matchData.team1Id!, name: team1Data.name, logoUrl: team1Data.logoUrl } as Team : undefined,
+      team2: team2Data ? { id: matchData.team2Id!, name: team2Data.name, logoUrl: team2Data.logoUrl } as Team : undefined,
+      date: matchData.date instanceof Timestamp ? matchData.date.toDate().toISOString() : (matchData.date as string | null),
+      status: matchData.status,
+      score1: matchData.score1 ?? null,
+      score2: matchData.score2 ?? null,
+      groupId: matchData.groupId,
+      groupName: matchData.groupName ?? null,
+      matchday: matchData.matchday ?? null,
+      roundName: matchData.roundName ?? null,
+      streamUrl: matchData.streamUrl ?? null,
+      createdAt: matchData.createdAt instanceof Timestamp ? matchData.createdAt.toDate().toISOString() : undefined,
+      updatedAt: matchData.updatedAt instanceof Timestamp ? matchData.updatedAt.toDate().toISOString() : undefined,
     };
 
     if (!populatedMatch.team1 || !populatedMatch.team2) {
         console.warn("Match found but team data is incomplete for match ID:", matchId);
-        // Decide if this should be an error or return partial data. For now, returning with possibly undefined teams.
     }
 
     return { match: populatedMatch };
@@ -151,22 +174,19 @@ export async function updateMatchAction(data: EditMatchFormInput) {
   try {
     const matchRef = doc(db, MATCHES_COLLECTION, matchId);
     
-    const updatePayload: Partial<Omit<Match, 'id' | 'team1' | 'team2' | 'createdAt'>> = {
+    const updatePayload: Partial<Omit<Match, 'id' | 'team1' | 'team2' | 'createdAt' | 'updatedAt'>> & { updatedAt: any, date: Timestamp | null } = {
       team1Id: data.team1Id,
       team2Id: data.team2Id,
       date: data.date ? Timestamp.fromDate(new Date(data.date)) : null,
       status: data.status,
-      streamUrl: data.streamUrl || null, // Store null if empty string
+      streamUrl: data.streamUrl || null,
       score1: data.status === 'completed' ? (data.score1 ?? null) : null,
       score2: data.status === 'completed' ? (data.score2 ?? null) : null,
       updatedAt: serverTimestamp(),
-      // groupName, matchday, roundName are usually set at creation and not editable here
-      // If they are part of EditMatchFormInput and need to be updatable, add them.
     };
     
-    // Remove undefined fields from payload to avoid issues with Firestore
     Object.keys(updatePayload).forEach(key => {
-      if ((updatePayload as any)[key] === undefined) {
+      if ((updatePayload as any)[key] === undefined && key !== 'date') { // Keep date if it's explicitly set to null
         delete (updatePayload as any)[key];
       }
     });
@@ -188,7 +208,7 @@ export async function addMatchAction(data: AddMatchFormInput) {
   }
   
   try {
-    const newMatchData: Omit<Match, 'id' | 'team1' | 'team2'> = {
+    const newMatchDataFirebase: Omit<Match, 'id' | 'team1' | 'team2' | 'createdAt' | 'updatedAt' | 'date'> & { date: Timestamp | null, createdAt: any, updatedAt: any } = {
       team1Id: data.team1Id,
       team2Id: data.team2Id,
       date: data.date ? Timestamp.fromDate(new Date(data.date)) : null,
@@ -203,9 +223,25 @@ export async function addMatchAction(data: AddMatchFormInput) {
       updatedAt: serverTimestamp(),
     };
 
-    const docRef = await addDoc(collection(db, MATCHES_COLLECTION), newMatchData);
-    const newMatchForClient = { ...newMatchData, id: docRef.id, date: data.date }; // Return string date
-    return { success: true, message: `Partido ${docRef.id} añadido a Firestore.`, match: newMatchForClient as Match };
+    const docRef = await addDoc(collection(db, MATCHES_COLLECTION), newMatchDataFirebase);
+    
+    // Construct a client-safe object. Avoid sending back raw Timestamps.
+    const newMatchForClient: Match = { 
+      id: docRef.id,
+      team1Id: data.team1Id,
+      team2Id: data.team2Id,
+      date: data.date, // date from form is already a string
+      status: data.status,
+      score1: data.score1 ?? null,
+      score2: data.score2 ?? null,
+      streamUrl: data.streamUrl || null,
+      groupName: data.groupName || null,
+      matchday: data.matchday || null,
+      roundName: data.roundName || null,
+      createdAt: new Date().toISOString(), // Approximate client-side timestamp
+      updatedAt: new Date().toISOString(), // Approximate client-side timestamp
+    };
+    return { success: true, message: `Partido ${docRef.id} añadido a Firestore.`, match: newMatchForClient };
   } catch (error) {
     console.error("Error añadiendo partido a Firestore:", error);
     const message = error instanceof Error ? error.message : "Error desconocido al añadir el partido.";
