@@ -90,7 +90,7 @@ export default function CompetitionPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle>FASE DE TORNEO</SectionTitle>
+      <SectionTitle>Competencia: Fase de Grupos y Playoffs</SectionTitle>
 
       <Tabs defaultValue="group-stage" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto">

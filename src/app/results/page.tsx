@@ -26,24 +26,22 @@ export default function ResultsPage() {
       const result = await getTournamentResultsData();
       if (result.error) {
         setError(result.error);
-        toast({ title: "Error al Cargar Resultados", description: result.error, variant: "destructive" });
+        toast({ title: "Error al Cargar Partidos", description: result.error, variant: "destructive" });
         setAllMatches([]);
         setGroupList([]);
       } else {
-        // Sort all matches primarily by date ascending (nulls/TBD last), then group, then matchday
         const sortedMatches = result.allMatches.sort((a, b) => {
           const aHasDate = !!a.date;
           const bHasDate = !!b.date;
 
-          if (aHasDate && !bHasDate) return -1; // a (with date) comes before b (no date)
-          if (!aHasDate && bHasDate) return 1;  // b (with date) comes before a (no date)
+          if (aHasDate && !bHasDate) return -1; 
+          if (!aHasDate && bHasDate) return 1;  
           
           if (aHasDate && bHasDate) {
             const dateComparison = new Date(a.date!).getTime() - new Date(b.date!).getTime();
-            if (dateComparison !== 0) return dateComparison; // Sort by date ascending
+            if (dateComparison !== 0) return dateComparison; 
           }
           
-          // If dates are same or both are null, sort by groupName, then matchday
           const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
           if (groupCompare !== 0) return groupCompare;
           
@@ -84,7 +82,7 @@ export default function ResultsPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando resultados desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando partidos desde Firestore...</p>
       </div>
     );
   }
@@ -93,7 +91,7 @@ export default function ResultsPage() {
      return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <p className="text-xl text-destructive font-semibold">Error al Cargar Resultados</p>
+        <p className="text-xl text-destructive font-semibold">Error al Cargar Partidos</p>
         <p className="text-muted-foreground mb-4">{error}</p>
         <Button onClick={fetchData}>Reintentar</Button>
       </div>
@@ -102,7 +100,7 @@ export default function ResultsPage() {
   
   return (
     <div className="space-y-8">
-      <SectionTitle>Resultados y Próximos Partidos</SectionTitle>
+      <SectionTitle>Partidos: Resultados y Próximos Encuentros</SectionTitle>
       <p className="mb-6 text-muted-foreground">
         Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha. Los datos se cargan desde Firestore.
       </p>

@@ -7,11 +7,11 @@ import { Menu, Cog } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'INICIO' },
-  { href: '/results', label: 'RESULTADOS' },
+  { href: '/results', label: 'PARTIDOS' }, // Renamed from RESULTADOS
   { href: '/participants', label: 'EQUIPOS' },
-  { href: '/competition', label: 'PARTIDOS' },
+  { href: '/competition', label: 'COMPETENCIA' }, // Renamed from PARTIDOS
   { href: '/contact', label: 'CONTACTO' },
-  { href: '/admin', label: 'ADMIN', icon: Cog }, 
+  { href: '/admin', label: 'ADMIN', icon: Cog },
 ];
 
 export function Header() {
