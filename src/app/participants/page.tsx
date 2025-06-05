@@ -11,12 +11,42 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, AlertTriangle, Users } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp
 import { useToast } from '@/hooks/use-toast';
 
 interface TeamWithPlayer extends Team {
   player?: Player; // Player is optional as a club might not have one assigned yet
 }
+
+// Helper to convert Firestore Timestamps in a single Team object
+function convertTeamDocToTeamObject(doc: import('firebase/firestore').DocumentSnapshot | import('firebase/firestore').QueryDocumentSnapshot): Team {
+  const data = doc.data()!;
+  return {
+    id: doc.id,
+    name: data.name,
+    logoUrl: data.logoUrl,
+    // player field is not directly on team doc, will be merged later
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+  } as Team;
+}
+
+// Helper to convert Firestore Timestamps in a single Player object
+function convertPlayerDocToPlayerObject(doc: import('firebase/firestore').DocumentSnapshot | import('firebase/firestore').QueryDocumentSnapshot): Player {
+  const data = doc.data()!;
+  return {
+    id: doc.id,
+    name: data.name,
+    gamerTag: data.gamerTag,
+    imageUrl: data.imageUrl,
+    bio: data.bio,
+    clubId: data.clubId,
+    favoriteFormation: data.favoriteFormation,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+  } as Player;
+}
+
 
 export default function ParticipantsPage() {
   const [allTeamsWithPlayers, setAllTeamsWithPlayers] = useState<TeamWithPlayer[]>([]);
@@ -41,16 +71,16 @@ export default function ParticipantsPage() {
         getDocs(jugadoresQuery)
       ]);
 
-      const equiposData = equiposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
-      const jugadoresData = jugadoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
-      
+      const equiposData = equiposSnapshot.docs.map(convertTeamDocToTeamObject);
+      const jugadoresData = jugadoresSnapshot.docs.map(convertPlayerDocToPlayerObject);
+
       const jugadoresMap = new Map(jugadoresData.map(jugador => [jugador.clubId, jugador]));
 
       const teamsWithPlayerData = equiposData.map(equipo => {
         const player = jugadoresMap.get(equipo.id); // clubId in player doc is the equipo.id
         return {
-          ...equipo,
-          player: player || undefined, // Assign player or undefined if not found
+          ...equipo, // equipo already has converted timestamps
+          player: player || undefined, // player already has converted timestamps
         };
       });
 
@@ -85,7 +115,7 @@ export default function ParticipantsPage() {
 
   useEffect(() => {
     const lowercasedSearchTerm = searchTerm.toLowerCase();
-    const results = allTeamsWithPlayers.filter(team => 
+    const results = allTeamsWithPlayers.filter(team =>
       team.name.toLowerCase().includes(lowercasedSearchTerm) ||
       (team.player && team.player.name.toLowerCase().includes(lowercasedSearchTerm)) ||
       (team.player && team.player.gamerTag.toLowerCase().includes(lowercasedSearchTerm))
@@ -98,7 +128,7 @@ export default function ParticipantsPage() {
     setSelectedClubName(team.name);
     setSelectedClubLogo(team.logoUrl);
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
@@ -165,10 +195,10 @@ export default function ParticipantsPage() {
                           <div className="flex-grow overflow-hidden">
                             <span className="font-medium text-sm truncate block">{team.name}</span>
                             {team.player ? (
-                              <span className={`text-xs truncate block 
-                                ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player 
-                                  ? 'text-primary-foreground' 
-                                  : 'text-muted-foreground group-hover:text-primary-foreground/80' 
+                              <span className={`text-xs truncate block
+                                ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player
+                                  ? 'text-primary-foreground'
+                                  : 'text-muted-foreground group-hover:text-primary-foreground/80'
                                 }`
                               }>
                                 {team.player.name} (@{team.player.gamerTag})
@@ -205,4 +235,3 @@ export default function ParticipantsPage() {
     </div>
   );
 }
-
