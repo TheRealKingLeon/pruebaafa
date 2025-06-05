@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
-import { addClubAction, addClubSchema, type AddClubFormInput } from '../actions';
+import { addClubAction } from '../actions';
+import { addClubSchema, type AddClubFormInput } from '../schemas'; // Updated import
 import { useToast } from '@/hooks/use-toast';
 
 export default function AddClubPage() {
@@ -33,6 +34,7 @@ export default function AddClubPage() {
         description: `El club "${result.club.name}" ha sido añadido con ID: ${result.club.id}.`,
       });
       router.push('/admin/clubs'); 
+      router.refresh(); // To ensure the list on /admin/clubs is updated
     } else {
       toast({
         title: "Error al Añadir Club",
@@ -51,7 +53,7 @@ export default function AddClubPage() {
             <span className="sr-only">Volver</span>
           </Link>
         </Button>
-        <SectionTitle as="h1" className="mb-0 pb-0 border-none">Añadir Nuevo Club a Firestore</SectionTitle>
+        <SectionTitle as="h1" className="mb-0 pb-0 border-none">Añadir Nuevo Club</SectionTitle>
       </div>
 
       <Card className="max-w-2xl mx-auto shadow-lg">
@@ -86,7 +88,7 @@ export default function AddClubPage() {
           <CardFooter className="flex justify-end">
             <Button type="submit" disabled={isSubmitting}>
               <Save className="mr-2 h-5 w-5" />
-              {isSubmitting ? "Guardando en Firestore..." : "Guardar Club"}
+              {isSubmitting ? "Guardando..." : "Guardar Club"}
             </Button>
           </CardFooter>
         </form>

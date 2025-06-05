@@ -12,14 +12,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Save, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
-import type { Team } from '@/types'; // Team type might not include 'player'
-import { updateClubAction, editClubSchema, type EditClubFormInput } from '../../actions';
+import type { Team } from '@/types'; 
+import { updateClubAction } from '../../actions';
+import { editClubSchema, type EditClubFormInput } from '../../schemas'; // Updated import
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-interface ClubData extends Omit<Team, 'player' | 'id'> { // 'player' is not in 'equipos' docs
+interface ClubDataFromFirestore extends Omit<Team, 'player' | 'createdAt' | 'updatedAt'> {
   id: string;
+  // Firestore timestamps will be specific objects, handle them if needed for display
+  // For form editing, usually string representations are fine.
 }
 
 export default function EditClubPage() {
@@ -28,7 +31,7 @@ export default function EditClubPage() {
   const clubId = params.id as string;
   const { toast } = useToast();
   
-  const [club, setClub] = useState<ClubData | null | undefined>(undefined); // undefined for loading, null for not found
+  const [club, setClub] = useState<ClubDataFromFirestore | null | undefined>(undefined); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +46,7 @@ export default function EditClubPage() {
       const clubRef = doc(db, "equipos", id);
       const clubSnap = await getDoc(clubRef);
       if (clubSnap.exists()) {
-        const clubData = { id: clubSnap.id, ...clubSnap.data() } as ClubData;
+        const clubData = { id: clubSnap.id, ...clubSnap.data() } as ClubDataFromFirestore;
         setClub(clubData);
         reset({ id: clubData.id, name: clubData.name, logoUrl: clubData.logoUrl });
       } else {
@@ -67,6 +70,10 @@ export default function EditClubPage() {
   }, [clubId, fetchClub]);
 
   const onSubmit: SubmitHandler<EditClubFormInput> = async (data) => {
+    if (!data.id) { // Should always be there due to form structure and resolver
+        toast({ title: "Error", description: "ID del club no está presente.", variant: "destructive" });
+        return;
+    }
     const result = await updateClubAction(data);
     if (result.success) {
       toast({
@@ -74,6 +81,7 @@ export default function EditClubPage() {
         description: `El club "${data.name}" ha sido actualizado en Firestore.`,
       });
       router.push('/admin/clubs');
+      router.refresh(); // To ensure the list on /admin/clubs is updated
     } else {
       toast({
         title: "Error al Actualizar",
@@ -87,7 +95,7 @@ export default function EditClubPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando datos del club desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando datos del club...</p>
       </div>
     );
   }
