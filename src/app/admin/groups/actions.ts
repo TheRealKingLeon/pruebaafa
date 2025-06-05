@@ -2,12 +2,14 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, runTransaction } from 'firebase/firestore';
-import type { Group, Team } from '@/types';
+import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, runTransaction, where, deleteDoc } from 'firebase/firestore';
+import type { Group, Team, Match as MatchType, TournamentRules } from '@/types';
+import { loadTournamentRulesAction, updateGroupSeedStatusAction } from '../tournament-settings/actions';
 
 const TOTAL_ZONES = 8;
 const TEAMS_PER_ZONE = 4; 
 const DEFAULT_ZONE_IDS = Array.from({ length: TOTAL_ZONES }, (_, i) => `zona-${String.fromCharCode(97 + i)}`); 
+const MATCHES_COLLECTION = "matches";
 
 // Helper function to shuffle an array
 function shuffleArray<T>(array: T[]): T[] {
@@ -92,6 +94,12 @@ export async function getGroupsAndTeamsAction(): Promise<{ groups: Group[]; team
 
 export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolean; message: string }> {
   try {
+    // First, check if groups are already seeded
+    const rulesResult = await loadTournamentRulesAction();
+    if (rulesResult.data?.groupsSeeded) {
+      return { success: false, message: "Los grupos ya han sido semeados y están bloqueados. No se pueden reasignar equipos." };
+    }
+
     const teamsSnapshot = await getDocs(collection(db, "equipos"));
     const teamsFromDb = teamsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Team));
 
@@ -155,23 +163,43 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
 
 export async function resetAndClearGroupsAction(): Promise<{ success: boolean; message: string }> {
   try {
+    // First, check if groups are already seeded
+    const rulesResult = await loadTournamentRulesAction();
+    if (rulesResult.data?.groupsSeeded) {
+      // Allow reset, but warn user or handle differently if matches are critical
+      // For now, we will proceed but also ensure the seeded flag is reset.
+      console.warn("[Reset Action] Grupos están marcados como semeados. Procediendo a limpiar equipos y resetear el flag.");
+    }
+    
+    const batch = writeBatch(db);
     const groupsRef = collection(db, "grupos");
     const groupsSnapshot = await getDocs(groupsRef);
     
-    if (groupsSnapshot.empty) {
-      return { success: true, message: "No hay grupos para limpiar (la colección 'grupos' está vacía o no existe)." };
+    if (!groupsSnapshot.empty) {
+      groupsSnapshot.forEach(groupDoc => {
+        batch.update(groupDoc.ref, {
+          teamIds: [],
+          updatedAt: serverTimestamp()
+        });
+      });
     }
 
-    const batch = writeBatch(db);
-    groupsSnapshot.forEach(groupDoc => {
-      batch.update(groupDoc.ref, {
-        teamIds: [],
-        updatedAt: serverTimestamp()
-      });
+    // Clear existing group stage matches from 'matches' collection
+    const matchesQuery = query(collection(db, MATCHES_COLLECTION), where("roundName", "==", undefined)); // Assuming group matches don't have roundName
+    const matchesSnapshot = await getDocs(matchesQuery);
+    matchesSnapshot.forEach(matchDoc => {
+      batch.delete(matchDoc.ref);
     });
-
+    
     await batch.commit();
-    return { success: true, message: "Todos los grupos han sido limpiados y los equipos desasignados con éxito." };
+    
+    // Reset the groupsSeeded flag in tournament_config
+    const seedStatusResult = await updateGroupSeedStatusAction(false);
+    if (!seedStatusResult.success) {
+        return { success: false, message: `Grupos y partidos limpiados, pero falló al resetear el estado de seed: ${seedStatusResult.message}` };
+    }
+
+    return { success: true, message: "Todos los grupos han sido limpiados, los equipos desasignados, los partidos de grupo eliminados y el estado de seed reseteado." };
   } catch (error) {
     console.error("Error in resetAndClearGroupsAction:", error);
     const message = error instanceof Error ? error.message : "Error desconocido al limpiar los grupos.";
@@ -186,6 +214,12 @@ export async function manualMoveTeamAction(payload: {
   specificTeamToSwapId?: string; 
 }): Promise<{ success: boolean; message: string }> {
   const { teamId, sourceGroupId, targetGroupId, specificTeamToSwapId } = payload;
+
+   // First, check if groups are already seeded
+   const rulesResult = await loadTournamentRulesAction();
+   if (rulesResult.data?.groupsSeeded) {
+     return { success: false, message: "Los grupos ya han sido semeados y están bloqueados. No se pueden mover equipos." };
+   }
 
   if (sourceGroupId === targetGroupId) {
     return { success: false, message: "No se puede mover un equipo al mismo grupo." };
@@ -264,37 +298,139 @@ export async function manualMoveTeamAction(payload: {
   }
 }
 
+// Round Robin Algorithm (Circle Method or Variation)
+function generateRoundRobinFixtures(teams: string[], roundRobinType: 'one-way' | 'two-way'): Array<{ team1Id: string, team2Id: string, matchday: number }> {
+  const fixtures: Array<{ team1Id: string, team2Id: string, matchday: number }> = [];
+  const n = teams.length;
+  if (n < 2) return fixtures;
 
-export async function seedGroupStageMatchesAction(): Promise<{ success: boolean; message: string }> {
-  console.log("[Server Action] seedGroupStageMatchesAction called. Placeholder implementation.");
-  // TODO:
-  // 1. Fetch tournament rules (roundRobinType) from tournament_config/rules_group_stage.
-  // 2. Fetch all groups and their assigned teams from 'grupos' collection.
-  // 3. For each group:
-  //    - Check if group has TEAMS_PER_ZONE teams. If not, maybe skip or return error.
-  //    - Generate round-robin matches based on roundRobinType.
-  //    - Assign placeholder dates/times for these matches.
-  //    - Create Match objects (status: 'upcoming', no scores).
-  // 4. Save these Match objects to a new Firestore collection (e.g., 'group_stage_matches').
-  // 5. Update a flag in Firestore (e.g., tournament_config/status or rules_group_stage)
-  //    to indicate that group stage has been seeded (e.g., `groupsSeeded: true`).
+  const schedule = [];
+  const localTeams = [...teams]; // Use a mutable copy for rotation
+
+  // If odd number of teams, add a "bye" team
+  if (n % 2 !== 0) {
+    localTeams.push("BYE");
+  }
+  const numTeamsForScheduling = localTeams.length;
+  const numMatchdays = numTeamsForScheduling - 1;
+
+  for (let day = 0; day < numMatchdays; day++) {
+    for (let i = 0; i < numTeamsForScheduling / 2; i++) {
+      const team1 = localTeams[i];
+      const team2 = localTeams[numTeamsForScheduling - 1 - i];
+      if (team1 !== "BYE" && team2 !== "BYE") {
+        fixtures.push({ team1Id: team1, team2Id: team2, matchday: day + 1 });
+      }
+    }
+    // Rotate teams, keeping the first one fixed
+    const lastTeam = localTeams.pop()!;
+    localTeams.splice(1, 0, lastTeam);
+  }
   
-  try {
-    // Simulate some work
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
-    
-    // Example: Set a flag in Firestore to indicate groups are seeded
-    // This part would be more complex in a real scenario.
-    // For now, we assume the client will manage the 'groupsSeeded' state locally after this action returns success.
-    // A more robust solution would be to read this flag from Firestore in GroupManagementClient.
-    
-    // const statusRef = doc(db, "tournament_config", "status_flags"); // Example path
-    // await setDoc(statusRef, { groupsSeeded: true, groupsSeededAt: serverTimestamp() }, { merge: true });
+  if (roundRobinType === 'two-way') {
+    const oneWayFixturesCount = fixtures.length;
+    for(let i = 0; i < oneWayFixturesCount; i++) {
+        const fixture = fixtures[i];
+        fixtures.push({
+            team1Id: fixture.team2Id, // Swap teams for return leg
+            team2Id: fixture.team1Id,
+            matchday: fixture.matchday + numMatchdays // Second half of season
+        });
+    }
+  }
+  return fixtures;
+}
 
-    return { success: true, message: "Seed de grupos iniciado (simulación). Partidos deberían generarse y grupos bloqueados." };
+
+export async function seedGroupStageMatchesAction(): Promise<{ success: boolean; message: string; matchesGenerated?: number }> {
+  console.log("[Server Action] seedGroupStageMatchesAction called.");
+
+  if (!db) {
+    return { success: false, message: "Error de configuración: la base de datos no está inicializada."};
+  }
+
+  try {
+    const rulesResult = await loadTournamentRulesAction();
+    if (!rulesResult.success || !rulesResult.data) {
+      return { success: false, message: `Error al cargar las reglas del torneo: ${rulesResult.message || "No hay datos de reglas."}` };
+    }
+    if (rulesResult.data.groupsSeeded) {
+      return { success: false, message: "Los grupos ya han sido semeados. Limpia los grupos primero si deseas re-semear." };
+    }
+    const tournamentRules = rulesResult.data;
+
+    const groupsQuery = query(collection(db, "grupos"));
+    const groupsSnapshot = await getDocs(groupsQuery);
+    const allGroups = groupsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Group));
+
+    const batch = writeBatch(db);
+    let totalMatchesGenerated = 0;
+
+    // 1. Clear existing group stage matches
+    const matchesCollectionRef = collection(db, MATCHES_COLLECTION);
+    // A simple way to identify group stage matches is if they have a groupId and no roundName
+    const oldMatchesQuery = query(matchesCollectionRef, where("groupId", "!=", null), where("roundName", "==", null));
+    const oldMatchesSnapshot = await getDocs(oldMatchesQuery);
+    oldMatchesSnapshot.forEach(doc => batch.delete(doc.ref));
+    console.log(`[Seed Action] Cleared ${oldMatchesSnapshot.size} old group stage matches.`);
+
+
+    const MINIMUM_ZONES_TO_SEED = 2; // As per client-side logic for enabling the button
+    const completedGroups = allGroups.filter(g => g.teamIds.length === TEAMS_PER_ZONE);
+    
+    if (completedGroups.length < MINIMUM_ZONES_TO_SEED) {
+        return { success: false, message: `Se requieren al menos ${MINIMUM_ZONES_TO_SEED} zonas completas (${TEAMS_PER_ZONE} equipos c/u) para iniciar el seed. Actualmente hay ${completedGroups.length}.`};
+    }
+
+    for (const group of completedGroups) { // Process only completed groups
+      if (group.teamIds.length !== TEAMS_PER_ZONE) {
+        console.log(`[Seed Action] Skipping group ${group.name} (ID: ${group.id}) as it does not have ${TEAMS_PER_ZONE} teams.`);
+        continue;
+      }
+
+      const fixtures = generateRoundRobinFixtures(group.teamIds, tournamentRules.roundRobinType);
+      
+      fixtures.forEach(fixture => {
+        const matchDocRef = doc(collection(db, MATCHES_COLLECTION));
+        const newMatch: Omit<MatchType, 'id' | 'team1' | 'team2'> = {
+          team1Id: fixture.team1Id,
+          team2Id: fixture.team2Id,
+          date: null, // To be set by admin
+          status: 'pending_date',
+          groupId: group.id,
+          groupName: group.name,
+          matchday: fixture.matchday,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        batch.set(matchDocRef, newMatch);
+        totalMatchesGenerated++;
+      });
+      console.log(`[Seed Action] Generated ${fixtures.length} matches for group ${group.name}.`);
+    }
+
+    if (totalMatchesGenerated === 0 && completedGroups.length > 0) {
+      return { success: false, message: "Se encontraron grupos completos, pero no se generaron partidos. Revisa la lógica de generación."};
+    }
+     if (totalMatchesGenerated === 0 && completedGroups.length === 0) {
+      return { success: false, message: "No se encontraron grupos completos para generar partidos."};
+    }
+
+
+    // 2. Mark groups as seeded in tournament_config
+    const configUpdateResult = await updateGroupSeedStatusAction(true);
+    if (!configUpdateResult.success) {
+        // Note: Matches might have been added to batch but not committed.
+        // Transactional approach would be better here but more complex.
+        // For now, we proceed and log error.
+        return { success: false, message: `Partidos generados (${totalMatchesGenerated}), pero falló al marcar los grupos como semeados: ${configUpdateResult.message}` };
+    }
+    
+    await batch.commit();
+    return { success: true, message: `Seed de grupos completado. ${totalMatchesGenerated} partidos generados. Los grupos están ahora bloqueados.`, matchesGenerated: totalMatchesGenerated };
 
   } catch (error) {
-    console.error("Error in seedGroupStageMatchesAction (simulación):", error);
+    console.error("Error in seedGroupStageMatchesAction:", error);
     const message = error instanceof Error ? error.message : "Error desconocido durante el seed de grupos.";
     return { success: false, message };
   }

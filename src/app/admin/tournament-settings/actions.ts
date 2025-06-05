@@ -3,24 +3,11 @@
 
 import type { TournamentRulesFormInput } from './schemas';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import type { TiebreakerRule } from '@/types';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
+import type { TiebreakerRule, TournamentRules } from '@/types';
 
 const TOURNAMENT_CONFIG_COLLECTION = "tournament_config";
 const GROUP_STAGE_RULES_DOC_ID = "rules_group_stage";
-
-// Helper to convert Firestore Timestamps to ISO strings if they exist
-// For simplicity, we're not deeply converting nested timestamps in this example.
-// The form expects basic types or types Zod can handle.
-// TiebreakerRule itself doesn't have timestamps.
-function convertTimestamps(data: any) {
-  if (data && data.updatedAt instanceof Timestamp) {
-    // We don't have updatedAt in TournamentRulesFormInput, but good practice if we did
-    // data.updatedAt = data.updatedAt.toDate().toISOString();
-  }
-  // Convert other timestamps if necessary
-  return data;
-}
 
 
 export async function saveTournamentRulesAction(data: TournamentRulesFormInput) {
@@ -34,14 +21,22 @@ export async function saveTournamentRulesAction(data: TournamentRulesFormInput) 
   try {
     const rulesRef = doc(db, TOURNAMENT_CONFIG_COLLECTION, GROUP_STAGE_RULES_DOC_ID);
     
-    // Ensure tiebreakers are correctly structured if they are being modified
-    // The data coming from the form should already be in the correct format.
-    const dataToSave = {
+    const dataToSave: Partial<TournamentRules> = { // Use Partial for flexibility with fields like groupsSeededAt
       ...data,
-      updatedAt: serverTimestamp(), // Add/update an 'updatedAt' timestamp
+      updatedAt: serverTimestamp(),
     };
+    // Ensure groupsSeeded is explicitly passed or handled
+    if (typeof data.groupsSeeded === 'boolean') {
+      dataToSave.groupsSeeded = data.groupsSeeded;
+      if (data.groupsSeeded && !data.groupsSeededAt) { // Only set groupsSeededAt if seeding now and not already set
+        dataToSave.groupsSeededAt = serverTimestamp();
+      } else if (!data.groupsSeeded) { // If unseeding
+        dataToSave.groupsSeededAt = null; // Or deleteField() if you prefer to remove it
+      }
+    }
 
-    await setDoc(rulesRef, dataToSave, { merge: true }); // merge: true to update if exists, create if not
+
+    await setDoc(rulesRef, dataToSave, { merge: true }); 
     
     console.log("[Server Action] Tournament rules saved successfully to Firestore.");
     return { success: true, message: "Configuración de reglas guardada exitosamente en Firestore." };
@@ -68,16 +63,21 @@ export async function loadTournamentRulesAction(): Promise<{ success: boolean; d
     if (docSnap.exists()) {
       const rawData = docSnap.data();
       // Remove server-only fields like 'updatedAt' before sending to client for Zod validation
-      const { updatedAt, ...clientSafeData } = rawData;
+      // and convert Timestamp for groupsSeededAt to string or number if needed by form, or handle in client
+      const { updatedAt, groupsSeededAt, ...clientSafeDataBase } = rawData;
       
-      // Ensure tiebreakers array is present and correctly typed, even if empty from DB
-      const validatedData = {
-        ...clientSafeData,
-        tiebreakers: clientSafeData.tiebreakers || [],
-      } as TournamentRulesFormInput;
-
-      console.log("[Server Action] Tournament rules loaded successfully from Firestore:", JSON.stringify(validatedData, null, 2));
-      return { success: true, data: validatedData };
+      const clientSafeData: TournamentRulesFormInput = {
+        pointsForWin: clientSafeDataBase.pointsForWin ?? 0,
+        pointsForDraw: clientSafeDataBase.pointsForDraw ?? 0,
+        pointsForLoss: clientSafeDataBase.pointsForLoss ?? 0,
+        roundRobinType: clientSafeDataBase.roundRobinType ?? 'one-way',
+        tiebreakers: clientSafeDataBase.tiebreakers || [],
+        groupsSeeded: typeof clientSafeDataBase.groupsSeeded === 'boolean' ? clientSafeDataBase.groupsSeeded : false,
+        // groupsSeededAt is not part of TournamentRulesFormInput currently, so not passed to client form state
+      };
+      
+      console.log("[Server Action] Tournament rules loaded successfully from Firestore:", JSON.stringify(clientSafeData, null, 2));
+      return { success: true, data: clientSafeData };
     } else {
       console.log("[Server Action] No tournament rules document found in Firestore. Returning null.");
       return { success: true, data: null, message: "No se encontró configuración de reglas guardada." };
@@ -87,4 +87,30 @@ export async function loadTournamentRulesAction(): Promise<{ success: boolean; d
     const errorMessage = error instanceof Error ? error.message : "Ocurrió un error desconocido al cargar las reglas.";
     return { success: false, data: null, message: `Error al cargar la configuración: ${errorMessage}` };
   }
+}
+
+export async function updateGroupSeedStatusAction(seeded: boolean): Promise<{success: boolean, message: string}> {
+    if (!db) {
+        return { success: false, message: "Error de DB."};
+    }
+    try {
+        const rulesRef = doc(db, TOURNAMENT_CONFIG_COLLECTION, GROUP_STAGE_RULES_DOC_ID);
+        const updateData: Partial<TournamentRules> = {
+            groupsSeeded: seeded,
+            updatedAt: serverTimestamp()
+        };
+        if (seeded) {
+            updateData.groupsSeededAt = serverTimestamp();
+        } else {
+            // Consider if you want to nullify groupsSeededAt or use deleteField()
+            // For simplicity, setDoc with merge:true below will handle it if not present in updateData,
+            // or we can explicitly set it to null.
+            updateData.groupsSeededAt = null; 
+        }
+        await setDoc(rulesRef, updateData, { merge: true });
+        return { success: true, message: `Estado de seed de grupos actualizado a: ${seeded}.`};
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : "Error desconocido.";
+        return { success: false, message: `Error actualizando estado de seed: ${msg}`};
+    }
 }

@@ -52,11 +52,13 @@ export interface Match {
   team2?: Team; 
   score1?: number;
   score2?: number;
-  date: string; 
-  status: 'upcoming' | 'live' | 'completed';
+  date: string | null; // Can be null initially, to be set by admin
+  status: 'upcoming' | 'live' | 'completed' | 'pending_date'; // Added pending_date
+  groupId?: string; // Firestore ID of the group document
   groupName?: string; 
   roundName?: string; 
   matchday?: number;
+  streamUrl?: string; // Optional URL for the stream
   createdAt?: any; 
   updatedAt?: any; 
 }
@@ -105,7 +107,9 @@ export interface TournamentRules {
   pointsForWin: number;
   pointsForDraw: number;
   pointsForLoss: number;
-  roundRobinType: 'one-way' | 'two-way'; // Added for Round Robin type
+  roundRobinType: 'one-way' | 'two-way'; 
   tiebreakers: TiebreakerRule[];
-  // Potentially other rules in the future
+  groupsSeeded?: boolean;
+  groupsSeededAt?: any; // Firestore ServerTimestamp
 }
+

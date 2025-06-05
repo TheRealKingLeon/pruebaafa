@@ -6,9 +6,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings, FileCog, PlaySquare, Lock } from 'lucide-react'; // Added PlaySquare, Lock
-import type { Team, Group as GroupType } from '@/types';
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings, FileCog, PlaySquare, Lock } from 'lucide-react';
+import type { Team, Group as GroupType, TournamentRules } from '@/types';
 import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction, seedGroupStageMatchesAction } from '../groups/actions';
+import { loadTournamentRulesAction } from '../tournament-settings/actions'; // For loading seed status
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -24,22 +25,18 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { TournamentRulesClient } from './TournamentRulesClient';
-import { Separator } from '@/components/ui/separator';
 
 interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
 }
 
 const TEAMS_PER_ZONE_CLIENT = 4; 
-const MINIMUM_ZONES_TO_SEED = 2;
+const MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE = 2;
 
 export function GroupManagementClient() {
   const [populatedGroups, setPopulatedGroups] = useState<PopulatedGroup[]>([]);
@@ -56,13 +53,15 @@ export function GroupManagementClient() {
 
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [groupsSeeded, setGroupsSeeded] = useState(false); 
-  const [isSeeding, setIsSeeding] = useState(false); 
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [tournamentRules, setTournamentRules] = useState<TournamentRules | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     let toastMessageOnError: { title: string, description: string, variant?: "destructive" } | null = null;
     try {
+      // Fetch groups and teams
       const { groups: firestoreGroups, teams, error: fetchError } = await getGroupsAndTeamsAction();
       if (fetchError) {
         setError(fetchError);
@@ -71,9 +70,7 @@ export function GroupManagementClient() {
         toastMessageOnError = { title: "Error al Cargar Datos de Grupos", description: fetchError, variant: "destructive" };
         return;
       }
-
       setAllTeams(teams);
-      
       const populated = firestoreGroups.map(group => {
         const groupTeams = group.teamIds
           .map(teamId => teams.find(t => t.id === teamId))
@@ -82,10 +79,21 @@ export function GroupManagementClient() {
       }).sort((a,b) => a.name.localeCompare(b.name)); 
       setPopulatedGroups(populated);
 
+      // Fetch tournament rules to get groupsSeeded status
+      const rulesResult = await loadTournamentRulesAction();
+      if (rulesResult.success && rulesResult.data) {
+        setTournamentRules(rulesResult.data);
+        setGroupsSeeded(rulesResult.data.groupsSeeded || false);
+      } else {
+        // If rules don't exist or fail to load, assume groups are not seeded
+        setGroupsSeeded(false);
+        console.warn("Could not load tournament rules or no rules found, defaulting groupsSeeded to false.", rulesResult.message);
+      }
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error desconocido al cargar datos de grupos.";
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido al cargar datos iniciales.";
       setError(errorMessage);
-      toastMessageOnError = { title: "Error Inesperado (Grupos)", description: errorMessage, variant: "destructive" };
+      toastMessageOnError = { title: "Error Inesperado (Datos Iniciales)", description: errorMessage, variant: "destructive" };
     } finally {
       setIsLoading(false);
       if (toastMessageOnError) {
@@ -95,8 +103,8 @@ export function GroupManagementClient() {
   }, [toast]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const handleAutoAssign = async () => {
     setIsAssigning(true);
@@ -104,7 +112,7 @@ export function GroupManagementClient() {
       const result = await autoAssignTeamsToGroupsAction();
       if (result.success) {
         toast({ title: "Asignación Exitosa", description: result.message });
-        await fetchData(); 
+        await fetchInitialData(); 
       } else {
         toast({ title: "Error en Asignación", description: result.message, variant: "destructive" });
       }
@@ -119,11 +127,11 @@ export function GroupManagementClient() {
   const handleResetGroups = async () => {
     setIsResetting(true);
     try {
-      const result = await resetAndClearGroupsAction();
+      const result = await resetAndClearGroupsAction(); // This action now also resets groupsSeeded flag and clears matches
       if (result.success) {
         toast({ title: "Grupos Limpiados", description: result.message });
-        setGroupsSeeded(false); 
-        await fetchData(); 
+        setGroupsSeeded(false); // Update local state immediately
+        await fetchInitialData(); // Re-fetch to confirm changes
       } else {
         toast({ title: "Error al Limpiar Grupos", description: result.message, variant: "destructive" });
       }
@@ -140,8 +148,15 @@ export function GroupManagementClient() {
     try {
       const result = await seedGroupStageMatchesAction();
       if (result.success) {
-        toast({ title: "Seed Iniciado", description: result.message });
-        setGroupsSeeded(true); 
+        toast({ title: "Seed Iniciado", description: result.message + (result.matchesGenerated ? ` Partidos generados: ${result.matchesGenerated}.` : '') });
+        setGroupsSeeded(true); // Update local state
+        // Optionally, re-fetch rules to confirm server state if needed, or rely on local update.
+        const rulesRefresh = await loadTournamentRulesAction();
+        if (rulesRefresh.success && rulesRefresh.data) {
+            setTournamentRules(rulesRefresh.data);
+            setGroupsSeeded(rulesRefresh.data.groupsSeeded || false);
+        }
+
       } else {
         toast({ title: "Error al Iniciar Seed", description: result.message, variant: "destructive" });
       }
@@ -302,26 +317,25 @@ export function GroupManagementClient() {
     } else {
       toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
     }
-    await fetchData(); 
+    await fetchInitialData(); 
   };
 
   const completedZonesCount = populatedGroups.filter(g => g.teams.length === TEAMS_PER_ZONE_CLIENT).length;
-
-  // Debugging logs for canSeedGroups
+  
   console.log("--- Debugging canSeedGroups ---");
   console.log("Current Time:", new Date().toLocaleTimeString());
-  console.log("1. groupsSeeded:", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
-  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_TO_SEED (${MINIMUM_ZONES_TO_SEED})? ${populatedGroups.length >= MINIMUM_ZONES_TO_SEED})`);
+  console.log("1. groupsSeeded (from state):", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
+  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE (${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})? ${populatedGroups.length >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})`);
   console.log("3. TEAMS_PER_ZONE_CLIENT:", TEAMS_PER_ZONE_CLIENT);
-  console.log("4. completedZonesCount:", completedZonesCount, `(>= MINIMUM_ZONES_TO_SEED (${MINIMUM_ZONES_TO_SEED})? ${completedZonesCount >= MINIMUM_ZONES_TO_SEED})`);
+  console.log("4. completedZonesCount (zones with 4 teams):", completedZonesCount, `(>= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE (${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})? ${completedZonesCount >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})`);
   console.log("5. allTeams.length:", allTeams.length);
-  const requiredTeamsForMinZones = MINIMUM_ZONES_TO_SEED * TEAMS_PER_ZONE_CLIENT;
-  console.log("6. Required teams for min zones (MINIMUM_ZONES_TO_SEED * TEAMS_PER_ZONE_CLIENT):", requiredTeamsForMinZones);
+  const requiredTeamsForMinZones = MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE * TEAMS_PER_ZONE_CLIENT;
+  console.log("6. Required teams for min zones (MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE * TEAMS_PER_ZONE_CLIENT):", requiredTeamsForMinZones);
   console.log("7. allTeams.length >= required teams?", allTeams.length >= requiredTeamsForMinZones);
   
   const canSeedGroups = !groupsSeeded &&
-    populatedGroups.length >= MINIMUM_ZONES_TO_SEED &&
-    completedZonesCount >= MINIMUM_ZONES_TO_SEED &&
+    populatedGroups.length >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE &&
+    completedZonesCount >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE &&
     allTeams.length >= requiredTeamsForMinZones;
   
   console.log("Final canSeedGroups result:", canSeedGroups);
@@ -343,7 +357,7 @@ export function GroupManagementClient() {
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <p className="text-lg text-destructive font-semibold">Error al Cargar Grupos</p>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={fetchData}>Reintentar</Button>
+        <Button onClick={fetchInitialData}>Reintentar</Button>
       </div>
     );
   }
@@ -374,7 +388,7 @@ export function GroupManagementClient() {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" disabled={isResetting || groupsSeeded} className="w-full sm:w-auto" title={groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." : "Limpiar todos los equipos de las zonas"}>
+              <Button variant="outline" disabled={isResetting} className="w-full sm:w-auto" title="Limpiar todos los equipos de las zonas y resetear el estado de seed">
                 <RotateCcw className="mr-2 h-5 w-5" />
                 {isResetting ? "Limpiando..." : "Reiniciar Grupos"}
               </Button>
@@ -383,9 +397,8 @@ export function GroupManagementClient() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Estás seguro de limpiar los grupos?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción desasignará todos los equipos de todas las zonas.
-                  La asignación automática deberá realizarse nuevamente si deseas llenarlos.
-                  Los grupos dejarán de estar "semeados". Esta acción no se puede deshacer.
+                  Esta acción desasignará todos los equipos de todas las zonas, eliminará los partidos de grupo generados,
+                  y reseteará el estado de "grupos semeados". Esta acción no se puede deshacer.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -404,7 +417,12 @@ export function GroupManagementClient() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-              <TournamentRulesClient onSaveSuccess={() => setIsRulesModalOpen(false)} />
+              <TournamentRulesClient 
+                onSaveSuccess={() => {
+                  setIsRulesModalOpen(false);
+                  fetchInitialData(); // Recargar reglas para reflejar cambios si afectan el estado de seed
+                }} 
+              />
             </DialogContent>
           </Dialog>
           <Button 
@@ -413,9 +431,8 @@ export function GroupManagementClient() {
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
             title={
                 groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." :
-                (populatedGroups.length < MINIMUM_ZONES_TO_SEED) ? `Se requieren al menos ${MINIMUM_ZONES_TO_SEED} zonas de grupos. Actualmente hay ${populatedGroups.length}.` :
-                (completedZonesCount < MINIMUM_ZONES_TO_SEED) ? `Se requiere que al menos ${MINIMUM_ZONES_TO_SEED} zonas tengan ${TEAMS_PER_ZONE_CLIENT} equipos. Actualmente ${completedZonesCount} cumplen.` :
-                (allTeams.length < requiredTeamsForMinZones) ? `Se requieren al menos ${requiredTeamsForMinZones} equipos en total para ${MINIMUM_ZONES_TO_SEED} zonas.` :
+                (!canSeedGroups && populatedGroups.length > 0) ? `Se requieren al menos ${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE} zonas completas (${TEAMS_PER_ZONE_CLIENT} equipos c/u) y ${requiredTeamsForMinZones} equipos en total para el seed. Revisa la consola para más detalles.` :
+                (populatedGroups.length === 0) ? "Aún no hay zonas de grupos cargadas." :
                 "Iniciar el sembrado de grupos y generar partidos"
             }
           >
@@ -462,7 +479,7 @@ export function GroupManagementClient() {
       {groupsSeeded && (
         <div className="p-4 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-200 dark:text-blue-800 flex items-center gap-2" role="alert">
             <Lock className="h-5 w-5"/>
-            <span className="font-medium">¡Grupos Semeados y Bloqueados!</span> Ya no se pueden modificar las zonas ni las reglas. Los partidos de la fase de grupos han sido generados (simulación).
+            <span className="font-medium">¡Grupos Semeados y Bloqueados!</span> Ya no se pueden modificar las zonas ni las reglas. Los partidos de la fase de grupos han sido generados.
         </div>
       )}
 
@@ -520,7 +537,7 @@ export function GroupManagementClient() {
       </div>
       <p className="text-sm text-muted-foreground italic mt-6">
         {groupsSeeded 
-            ? "Los grupos están semeados y bloqueados. Para realizar cambios, primero se necesitaría una opción para 'Resetear Torneo Completo' (funcionalidad futura)."
+            ? "Los grupos están semeados y bloqueados. Para realizar cambios, primero se necesitaría 'Reiniciar Grupos', lo cual eliminará los partidos generados."
             : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena, se intentará un intercambio. Cada zona tiene un máximo de ${TEAMS_PER_ZONE_CLIENT} equipos.`
         }
       </p>
