@@ -1,23 +1,23 @@
 
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { MatchResultCard } from '@/components/sections/results/MatchResultCard';
-import { mockMatches, mockGroups } from '@/data/mock'; // Importar mockGroups
-import type { Match, Group } from '@/types'; // Importar Group
+import { mockMatches, mockGroups } from '@/data/mock';
+import type { Match, Group } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ListEnd, ListTodo, LayoutGrid } from 'lucide-react';
+import { ListEnd, ListTodo, LayoutGrid, CalendarDays } from 'lucide-react';
 
 export default function ResultsPage() {
   const completedMatches = mockMatches.filter(match => match.status === 'completed');
   const upcomingAndLiveMatches = mockMatches.filter(match => match.status === 'upcoming' || match.status === 'live');
 
-  // Asegurar que mockGroups exista y tenga al menos un elemento antes de usarlo para defaultValue
-  const defaultZoneId = mockGroups.length > 0 ? mockGroups[0].id : 'no-zones';
+  const defaultUpcomingZoneId = mockGroups.length > 0 ? mockGroups[0].id : 'no-upcoming-zones';
+  const defaultCompletedZoneId = mockGroups.length > 0 ? `${mockGroups[0].id}-completed` : 'no-completed-zones';
 
   return (
     <div className="space-y-8">
       <SectionTitle>Resultados y Próximos Partidos</SectionTitle>
       <p className="mb-6 text-muted-foreground">
-        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona.
+        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha.
       </p>
 
       <Tabs defaultValue="upcoming" className="w-full">
@@ -32,11 +32,91 @@ export default function ResultsPage() {
 
         <TabsContent value="completed" className="mt-6">
           {completedMatches.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {completedMatches.map((match: Match) => (
-                <MatchResultCard key={match.id} match={match} />
-              ))}
-            </div>
+            <>
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
+                  <LayoutGrid className="mr-2 h-5 w-5" />
+                  Selecciona una Zona
+                </h3>
+                {mockGroups.length > 0 ? (
+                  <Tabs defaultValue={defaultCompletedZoneId} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                      {mockGroups.map((group: Group) => (
+                        <TabsTrigger key={`${group.id}-completed`} value={`${group.id}-completed`} className="text-xs sm:text-sm py-2">
+                          {group.name}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {mockGroups.map((group: Group) => {
+                      const zoneCompletedMatches = completedMatches.filter(
+                        (match) => match.groupName === group.name
+                      );
+
+                      const uniqueMatchdays = Array.from(new Set(zoneCompletedMatches.map(m => m.matchday).filter(Boolean) as number[])).sort((a, b) => a - b);
+                      const defaultMatchdayTab = `all-matchdays-${group.id}-completed`;
+
+                      return (
+                        <TabsContent key={`${group.id}-completed-content`} value={`${group.id}-completed`} className="mt-6">
+                          {zoneCompletedMatches.length > 0 ? (
+                            <>
+                              <h4 className="text-lg font-semibold mb-3 flex items-center text-muted-foreground">
+                                <CalendarDays className="mr-2 h-4 w-4" />
+                                Selecciona una Fecha
+                              </h4>
+                              <Tabs defaultValue={defaultMatchdayTab} className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-6">
+                                  <TabsTrigger value={`all-matchdays-${group.id}-completed`} className="text-xs py-1.5">Todas</TabsTrigger>
+                                  {uniqueMatchdays.map(matchday => (
+                                    <TabsTrigger key={`matchday-${matchday}-${group.id}-completed`} value={`matchday-${matchday}-${group.id}-completed`} className="text-xs py-1.5">
+                                      Fecha {matchday}
+                                    </TabsTrigger>
+                                  ))}
+                                </TabsList>
+                                
+                                <TabsContent value={`all-matchdays-${group.id}-completed`}>
+                                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {zoneCompletedMatches.map((match: Match) => (
+                                      <MatchResultCard key={`${match.id}-all-completed`} match={match} />
+                                    ))}
+                                  </div>
+                                </TabsContent>
+
+                                {uniqueMatchdays.map(matchday => {
+                                  const matchesForMatchday = zoneCompletedMatches.filter(
+                                    m => m.matchday === matchday
+                                  );
+                                  return (
+                                    <TabsContent key={`matchday-${matchday}-${group.id}-completed-content`} value={`matchday-${matchday}-${group.id}-completed`}>
+                                      {matchesForMatchday.length > 0 ? (
+                                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                          {matchesForMatchday.map((match: Match) => (
+                                            <MatchResultCard key={match.id} match={match} />
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-center text-muted-foreground py-10">
+                                          No hay partidos finalizados para {group.name} - Fecha {matchday}.
+                                        </p>
+                                      )}
+                                    </TabsContent>
+                                  );
+                                })}
+                              </Tabs>
+                            </>
+                          ) : (
+                            <p className="text-center text-muted-foreground py-10">
+                              No hay partidos finalizados para {group.name}.
+                            </p>
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                ) : (
+                  <p className="text-center text-muted-foreground py-10">No hay zonas definidas para filtrar.</p>
+                )}
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground py-10">No hay partidos finalizados aún.</p>
           )}
@@ -51,17 +131,17 @@ export default function ResultsPage() {
                   Selecciona una Zona
                 </h3>
                 {mockGroups.length > 0 ? (
-                  <Tabs defaultValue={defaultZoneId} className="w-full">
+                  <Tabs defaultValue={defaultUpcomingZoneId} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
                       {mockGroups.map((group: Group) => (
                         <TabsTrigger key={group.id} value={group.id} className="text-xs sm:text-sm py-2">
-                          {group.name} {/* Esto es "Zona A", "Zona B", etc. */}
+                          {group.name}
                         </TabsTrigger>
                       ))}
                     </TabsList>
                     {mockGroups.map((group: Group) => {
                       const zoneMatches = upcomingAndLiveMatches.filter(
-                        (match) => match.groupName === group.name 
+                        (match) => match.groupName === group.name
                       );
                       return (
                         <TabsContent key={group.id} value={group.id} className="mt-6">
