@@ -247,12 +247,13 @@ export function GroupManagementClient() {
       return newGroups;
     });
     
+    // Reset drag states after optimistic update
     setDraggedTeam(null); 
     setSourceGroupIdForDrag(null);
     setHoveredTeamAsDropTarget(null);
     
     if (optimisticErrorCondition) {
-        toast(optimisticErrorCondition as any); // Type assertion to satisfy toast
+        toast(optimisticErrorCondition as any); 
         return; 
     }
 
@@ -262,7 +263,7 @@ export function GroupManagementClient() {
     } else {
       toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
     }
-    await fetchData(); // Refetch to ensure consistency after server action
+    await fetchData(); 
   };
 
   if (isLoading) {
@@ -332,7 +333,7 @@ export function GroupManagementClient() {
                 Configurar Reglas
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl"> {/* MODAL WIDTH ADJUSTED HERE */}
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
               <TournamentRulesClient />
             </DialogContent>
           </Dialog>

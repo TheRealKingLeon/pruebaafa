@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Save, AlertTriangle, Trash2, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -38,7 +37,7 @@ const defaultTiebreakers: TiebreakerRule[] = (Object.keys(initialTiebreakerCrite
 }));
 
 interface SortableTiebreakerItemProps {
-  item: TiebreakerRule;
+  item: TiebreakerRule & { fieldId: string }; // fieldId is from useFieldArray
   index: number;
   control: any; // Control from react-hook-form
   register: any; // Register from react-hook-form
@@ -54,7 +53,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ id: item.fieldId }); // Use fieldId for useSortable
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -101,7 +100,7 @@ function SortableTiebreakerItem({ item, index, control, register, errors, setVal
         min="0"
         {...register(`tiebreakers.${index}.priority`)}
         className={`w-20 text-center ${errors?.tiebreakers?.[index]?.priority ? 'border-destructive' : ''}`}
-        disabled={!item.enabled}
+        disabled={!item.enabled} // Disable priority if not enabled
       />
     </div>
   );
@@ -136,8 +135,8 @@ export function TournamentRulesClient() {
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (active.id !== over.id) {
-      const oldIndex = fields.findIndex((field) => field.id === active.id);
-      const newIndex = fields.findIndex((field) => field.id === over.id);
+      const oldIndex = fields.findIndex((field) => field.fieldId === active.id);
+      const newIndex = fields.findIndex((field) => field.fieldId === over.id);
       move(oldIndex, newIndex);
       
       const currentTiebreakers = form.getValues('tiebreakers');
@@ -221,7 +220,7 @@ export function TournamentRulesClient() {
         <DialogTitle className="text-2xl font-headline text-primary">Configuración de Reglas del Torneo</DialogTitle>
         <DialogDescription>Define el sistema de puntuación y los criterios de desempate para la fase de grupos.</DialogDescription>
       </DialogHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
           {/* Puntos por Partido */}
           <section>
             <h3 className="text-lg font-semibold mb-3 text-foreground">Sistema de Puntuación</h3>
@@ -260,7 +259,7 @@ export function TournamentRulesClient() {
             )}
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={fields.map(field => field.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={fields.map(field => field.fieldId)} strategy={verticalListSortingStrategy}>
                 {fields.map((field, index) => (
                   <SortableTiebreakerItem
                     key={field.fieldId} 
@@ -295,5 +294,4 @@ export function TournamentRulesClient() {
     </>
   );
 }
-
     
