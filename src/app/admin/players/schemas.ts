@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 // Schema for the player details themselves
@@ -6,6 +7,7 @@ export const playerFormSchema = z.object({
   gamerTag: z.string().min(2, { message: "El GamerTag debe tener al menos 2 caracteres." }),
   imageUrl: z.string().url({ message: "Debe ingresar una URL válida para la imagen." }),
   bio: z.string().min(10, { message: "La biografía debe tener al menos 10 caracteres." }).max(500, { message: "La biografía no puede exceder los 500 caracteres." }),
+  favoriteFormation: z.string().optional(), // Nuevo campo opcional
 });
 export type PlayerFormData = z.infer<typeof playerFormSchema>;
 

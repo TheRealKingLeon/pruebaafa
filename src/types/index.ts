@@ -6,6 +6,7 @@ export interface Player {
   imageUrl: string; 
   bio: string;
   clubId: string; // ID of the club (equipo) this player belongs to
+  favoriteFormation?: string; // Nueva propiedad para la formación favorita
   createdAt?: any; // Firestore ServerTimestamp
   updatedAt?: any; // Firestore ServerTimestamp
 }

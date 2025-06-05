@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import type { Player } from '@/types';
 import { Card, CardContent, CardTitle } from '@/components/ui/card'; // Removed CardHeader
-import { UserCircle, Gamepad, Info, Shield } from 'lucide-react';
+import { UserCircle, Gamepad, Info, Shield, ShieldPlus, Puzzle } from 'lucide-react';
 
 interface PlayerDetailCardProps {
   player: Player | null;
@@ -58,11 +58,19 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
                 <p className="text-sm text-foreground/80 leading-relaxed">{player.bio}</p>
               </div>
               
-              <div>
+              {player.favoriteFormation && (
+                <div>
+                  <h3 className="flex items-center gap-2 text-md font-semibold text-muted-foreground mb-1">
+                    <Puzzle className="h-4 w-4" /> Formación Favorita
+                  </h3>
+                  <p className="text-sm text-foreground/80">{player.favoriteFormation}</p>
+                </div>
+              )}
+               <div>
                 <h3 className="flex items-center gap-2 text-md font-semibold text-muted-foreground mb-1">
-                  <Gamepad className="h-4 w-4" /> Especialidad en FC 25
+                  <Gamepad className="h-4 w-4" /> Plataforma
                 </h3>
-                <p className="text-sm text-foreground/80">Conocido por su dominio en el campo virtual de FC 25.</p>
+                <p className="text-sm text-foreground/80">Consolas (FC 25)</p>
               </div>
             </div>
           </div>

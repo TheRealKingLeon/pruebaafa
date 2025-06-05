@@ -13,7 +13,7 @@ export async function updatePlayerAction(data: UpdatePlayerFormInput) {
     const q = query(playersRef, where("clubId", "==", data.clubId));
     const querySnapshot = await getDocs(q);
 
-    const playerData = {
+    const playerData: Partial<Player> = { // Usar Partial<Player> para flexibilidad
       name: data.name,
       gamerTag: data.gamerTag,
       imageUrl: data.imageUrl,
@@ -21,6 +21,16 @@ export async function updatePlayerAction(data: UpdatePlayerFormInput) {
       clubId: data.clubId,
       updatedAt: serverTimestamp(),
     };
+
+    if (data.favoriteFormation && data.favoriteFormation.trim() !== '') {
+      playerData.favoriteFormation = data.favoriteFormation.trim();
+    } else {
+      // Si es un string vacío o solo espacios, considera no guardarlo o guardarlo como null/undefined
+      // Firestore no guarda campos undefined. Para eliminar un campo, usa deleteField()
+      // Por ahora, simplemente no lo añadimos si está vacío.
+      // Si quieres explícitamente borrarlo, necesitarías un manejo diferente.
+    }
+
 
     if (querySnapshot.empty) {
       // No player found for this club, create a new one

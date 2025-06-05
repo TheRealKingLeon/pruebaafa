@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Save, Loader2, UserCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, UserCircle, AlertTriangle, ShieldPlus } from 'lucide-react';
 import Link from 'next/link';
 import type { Team, Player } from '@/types';
 import { updatePlayerAction } from '../../actions';
@@ -36,7 +36,6 @@ export default function EditPlayerPage() {
   const [clubDisplayInfo, setClubDisplayInfo] = useState<ClubDisplayInfo | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // player state is implicitly handled by form's defaultValues after fetch
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<PlayerFormData>({
     resolver: zodResolver(playerFormSchema),
@@ -45,6 +44,7 @@ export default function EditPlayerPage() {
       gamerTag: '',
       imageUrl: '',
       bio: '',
+      favoriteFormation: '', // Valor por defecto para el nuevo campo
     }
   });
 
@@ -77,10 +77,11 @@ export default function EditPlayerPage() {
           gamerTag: playerData.gamerTag,
           imageUrl: playerData.imageUrl,
           bio: playerData.bio,
+          favoriteFormation: playerData.favoriteFormation || '', // Cargar formación o string vacío
         });
       } else {
         // No player document for this clubId, form will be blank for new entry
-        reset({ name: '', gamerTag: '', imageUrl: 'https://placehold.co/300x400.png', bio: '' });
+        reset({ name: '', gamerTag: '', imageUrl: 'https://placehold.co/300x400.png', bio: '', favoriteFormation: '' });
       }
     } catch (err) {
       console.error("Error fetching player/club data:", err);
@@ -206,6 +207,17 @@ export default function EditPlayerPage() {
                 className={errors.imageUrl ? 'border-destructive' : ''}
               />
               {errors.imageUrl && <p className="text-sm text-destructive">{errors.imageUrl.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="favoriteFormation">Formación Favorita (Ej: 4-3-3)</Label>
+              <Input
+                id="favoriteFormation"
+                {...register("favoriteFormation")}
+                placeholder="Ej: 4-3-3 (Defensiva)"
+                className={errors.favoriteFormation ? 'border-destructive' : ''}
+              />
+              {errors.favoriteFormation && <p className="text-sm text-destructive">{errors.favoriteFormation.message}</p>}
             </div>
             
             <div className="space-y-2">
