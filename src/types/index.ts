@@ -15,16 +15,13 @@ export interface Team {
   id: string; // Firestore document ID for "equipos" collection
   name: string; 
   logoUrl: string; 
-  // Player object is NOT stored directly in "equipos" document.
-  // It's fetched separately from "jugadores" collection if needed.
-  // The 'player' field here is more for conceptual client-side representation or from mock data.
-  player?: Player; // Optional, as it might not always be populated from "equipos" doc
+  player?: Player; 
   createdAt?: any; // Firestore ServerTimestamp
   updatedAt?: any; // Firestore ServerTimestamp
 }
 
 export interface StandingEntry {
-  team: Team; // This Team object might be a simplified version if standings are stored flat
+  team: Team; 
   position: number;
   points: number;
   played: number;
@@ -34,28 +31,28 @@ export interface StandingEntry {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
-  // Consider adding clubId directly here if team object is not fully populated
   clubId?: string; 
 }
 
+// Updated Group interface for Firestore storage
 export interface Group {
-  id: string; // Firestore document ID (if groups are stored) or conceptual ID
-  name: string; 
-  // Teams might be an array of clubIds or simplified Team objects
-  teams: Team[]; // Or string[] (clubIds) if fetching teams separately
-  standings: StandingEntry[];
-  // Consider storing group related data in Firestore if needed, e.g. in a "grupos" collection
+  id: string; // Firestore document ID (e.g., "zona-a")
+  name: string; // e.g., "Zona A"
+  zoneId: string; // e.g., "zona-a", matches the document ID
+  teamIds: string[]; // Array of Firestore document IDs from the "equipos" collection
+  createdAt?: any; // Firestore ServerTimestamp
+  updatedAt?: any; // Firestore ServerTimestamp
 }
 
 export interface Match {
-  id: string; // Firestore document ID for "partidos" collection
-  team1Id: string; // Firestore ID of team1 from "equipos"
-  team2Id: string; // Firestore ID of team2 from "equipos"
-  team1?: Team; // Populated on client-side after fetching by ID
-  team2?: Team; // Populated on client-side after fetching by ID
+  id: string; 
+  team1Id: string; 
+  team2Id: string; 
+  team1?: Team; 
+  team2?: Team; 
   score1?: number;
   score2?: number;
-  date: string; // ISO string, or Firestore Timestamp
+  date: string; 
   status: 'upcoming' | 'live' | 'completed';
   groupName?: string; 
   roundName?: string; 
@@ -65,8 +62,8 @@ export interface Match {
 }
 
 export interface PlayoffRound {
-  id: string; // Firestore document ID (if playoff rounds are stored) or conceptual ID
+  id: string; 
   name: string; 
   zoneId: string; 
-  matches: Match[]; // Or string[] (matchIds) if fetching matches separately
+  matches: Match[]; 
 }

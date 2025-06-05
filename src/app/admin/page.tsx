@@ -3,13 +3,13 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Shield, Users, ListOrdered, Settings } from 'lucide-react';
+import { Shield, Users, ListOrdered, Settings, LayoutGrid } from 'lucide-react'; // Added LayoutGrid
 
 export default function AdminDashboardPage() {
   const managementSections = [
     { title: 'Gestionar Clubes', href: '/admin/clubs', icon: Shield, description: 'Añadir, editar o eliminar clubes participantes.' },
     { title: 'Gestionar Jugadores', href: '/admin/players', icon: Users, description: 'Administrar los perfiles de los jugadores.' },
-    { title: 'Gestionar Grupos', href: '/admin/groups', icon: ListOrdered, description: 'Configurar las zonas y los equipos asignados.' },
+    { title: 'Gestionar Grupos', href: '/admin/groups', icon: LayoutGrid, description: 'Configurar las zonas y asignar equipos automáticamente.' },
     { title: 'Gestionar Partidos', href: '/admin/matches', icon: Settings, description: 'Programar enfrentamientos y actualizar resultados.' },
   ];
 
