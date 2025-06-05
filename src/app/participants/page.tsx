@@ -9,7 +9,8 @@ import type { Team, Player } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, AlertTriangle, Users, Button } from 'lucide-react';
+import { Search, Loader2, AlertTriangle, Users } from 'lucide-react'; // Button removed from here
+import { Button } from '@/components/ui/button'; // Correct import for Button
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp
 import { useToast } from '@/hooks/use-toast';
@@ -235,3 +236,5 @@ export default function ParticipantsPage() {
     </div>
   );
 }
+
+    
