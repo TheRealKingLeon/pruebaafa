@@ -4,7 +4,6 @@
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,31 +11,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
-
-const clubSchema = z.object({
-  name: z.string().min(3, { message: "El nombre del club debe tener al menos 3 caracteres." }),
-  logoUrl: z.string().url({ message: "Debe ingresar una URL válida para el logo." }),
-});
-
-type ClubFormInput = z.infer<typeof clubSchema>;
-
-// Server Action (simulated)
-async function addClubAction(data: ClubFormInput) {
-  "use server";
-  console.log("Nuevo club a añadir (simulado):", data);
-  // En una aplicación real, aquí se interactuaría con la base de datos para guardar el club.
-  // Por ejemplo: await db.clubs.create({ data });
-  // Para este prototipo, solo mostramos un mensaje.
-  return { success: true, message: `Club "${data.name}" añadido (simulación).`, club: {...data, id: `club-${Math.random().toString(36).substr(2, 5)}`} };
-}
+import { addClubAction, addClubSchema, type AddClubFormInput } from './../actions';
 
 export default function AddClubPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ClubFormInput>({
-    resolver: zodResolver(clubSchema),
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AddClubFormInput>({
+    resolver: zodResolver(addClubSchema),
   });
 
-  const onSubmit: SubmitHandler<ClubFormInput> = async (data) => {
+  const onSubmit: SubmitHandler<AddClubFormInput> = async (data) => {
     const result = await addClubAction(data);
     console.log(result.message);
     // Aquí podrías usar un toast para mostrar el mensaje de éxito

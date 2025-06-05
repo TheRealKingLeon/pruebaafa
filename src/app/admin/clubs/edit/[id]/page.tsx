@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,24 +14,7 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { mockTeams } from '@/data/mock';
 import type { Team } from '@/types';
-
-const clubSchema = z.object({
-  id: z.string(), // Keep ID for identification
-  name: z.string().min(3, { message: "El nombre del club debe tener al menos 3 caracteres." }),
-  logoUrl: z.string().url({ message: "Debe ingresar una URL válida para el logo." }),
-});
-
-type ClubFormInput = z.infer<typeof clubSchema>;
-
-// Server Action (simulated)
-async function updateClubAction(data: ClubFormInput) {
-  "use server";
-  console.log("Club a actualizar (simulado):", data);
-  // En una aplicación real, aquí se interactuaría con la base de datos para actualizar el club.
-  // Por ejemplo: await db.clubs.update({ where: { id: data.id }, data });
-  // Para este prototipo, solo mostramos un mensaje.
-  return { success: true, message: `Club "${data.name}" (ID: ${data.id}) actualizado (simulación).` };
-}
+import { updateClubAction, editClubSchema, type EditClubFormInput } from '../../actions';
 
 export default function EditClubPage() {
   const router = useRouter();
@@ -41,8 +23,8 @@ export default function EditClubPage() {
   
   const [club, setClub] = useState<Team | null | undefined>(undefined); // undefined for loading state
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ClubFormInput>({
-    resolver: zodResolver(clubSchema),
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<EditClubFormInput>({
+    resolver: zodResolver(editClubSchema),
   });
 
   useEffect(() => {
@@ -50,12 +32,13 @@ export default function EditClubPage() {
       const foundClub = mockTeams.find(t => t.id === clubId);
       setClub(foundClub || null);
       if (foundClub) {
+        // Ensure 'id' is passed to reset as it's part of EditClubFormInput
         reset({ id: foundClub.id, name: foundClub.name, logoUrl: foundClub.logoUrl });
       }
     }
   }, [clubId, reset]);
 
-  const onSubmit: SubmitHandler<ClubFormInput> = async (data) => {
+  const onSubmit: SubmitHandler<EditClubFormInput> = async (data) => {
     const result = await updateClubAction(data);
     console.log(result.message);
     // Aquí podrías usar un toast para mostrar el mensaje de éxito
@@ -105,7 +88,8 @@ export default function EditClubPage() {
             <CardDescription>Modifique la información del club.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Input type="hidden" {...register("id")} />
+            {/* Hidden input for ID, crucial for the updateClubAction */}
+            <Input type="hidden" {...register("id")} /> 
             <div className="space-y-2">
               <Label htmlFor="name">Nombre del Club</Label>
               <Input
