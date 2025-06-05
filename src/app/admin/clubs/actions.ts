@@ -2,9 +2,27 @@
 'use server';
 
 import { db, getFirebaseDebugInfo } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Team } from '@/types';
 import type { AddClubFormInput, EditClubFormInput } from './schemas';
+
+// Helper function to check for duplicate club name (case-insensitive)
+async function isClubNameDuplicate(name: string, excludeClubId?: string): Promise<boolean> {
+  const normalizedName = name.trim().toLowerCase();
+  const equiposRef = collection(db, "equipos");
+  const querySnapshot = await getDocs(equiposRef);
+  
+  for (const document of querySnapshot.docs) {
+    const clubData = document.data();
+    if (clubData.name && clubData.name.trim().toLowerCase() === normalizedName) {
+      if (excludeClubId && document.id === excludeClubId) {
+        continue; // Skip self when updating
+      }
+      return true; // Found a duplicate
+    }
+  }
+  return false; // No duplicate found
+}
 
 // Add Club Action
 export async function addClubAction(data: AddClubFormInput) {
@@ -21,6 +39,12 @@ export async function addClubAction(data: AddClubFormInput) {
   }
 
   try {
+    // Check for duplicate name before adding
+    if (await isClubNameDuplicate(data.name)) {
+      console.warn(`[Server Action] Attempt to add club with duplicate name: "${data.name}"`);
+      return { success: false, message: `Ya existe un club con el nombre "${data.name}". Por favor, elige un nombre diferente.` };
+    }
+
     const clubData = {
       ...data,
       createdAt: serverTimestamp(),
@@ -67,6 +91,12 @@ export async function updateClubAction(data: EditClubFormInput) {
   }
 
   try {
+    // Check for duplicate name before updating, excluding the current club
+    if (await isClubNameDuplicate(data.name, clubId)) {
+      console.warn(`[Server Action] Attempt to update club ID ${clubId} with duplicate name: "${data.name}"`);
+      return { success: false, message: `Ya existe otro club con el nombre "${data.name}". Por favor, elige un nombre diferente.` };
+    }
+
     const clubRef = doc(db, "equipos", clubId);
     const { id, ...updateDataWithoutId } = data;
     const updatePayload = {
@@ -131,3 +161,4 @@ export async function deleteClubAction(clubId: string) {
     return { success: false, message: `Error al eliminar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
   }
 }
+
