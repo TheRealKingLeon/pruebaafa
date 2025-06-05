@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import type { Group, Team } from '@/types';
 
 const TOTAL_ZONES = 8;
@@ -27,14 +27,29 @@ function toClientSafeGroup(docSnap: import('firebase/firestore').QueryDocumentSn
     name: data?.name || '',
     zoneId: data?.zoneId || '',
     teamIds: data?.teamIds || [],
+    // createdAt and updatedAt are intentionally omitted as they are Timestamps
   };
+}
+
+// Helper function to create a client-safe team object
+function toClientSafeTeam(docSnap: import('firebase/firestore').QueryDocumentSnapshot | import('firebase/firestore').DocumentSnapshot): Team {
+    const data = docSnap.data();
+    // The player object is not populated here, so no need to sanitize it yet.
+    // If it were, player's Timestamps would also need handling.
+    return {
+        id: docSnap.id,
+        name: data?.name || '',
+        logoUrl: data?.logoUrl || '',
+        // player: data?.player, // If player was directly embedded and had Timestamps, it would need sanitization too
+        // createdAt and updatedAt are intentionally omitted as they are Timestamps
+    };
 }
 
 
 export async function getGroupsAndTeamsAction(): Promise<{ groups: Group[]; teams: Team[]; error?: string }> {
   try {
     const teamsSnapshot = await getDocs(query(collection(db, "equipos"), orderBy("name")));
-    const teams = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
+    const teams = teamsSnapshot.docs.map(toClientSafeTeam); // Use helper to sanitize teams
 
     const groupsRef = collection(db, "grupos");
     let groups: Group[] = [];
@@ -81,13 +96,17 @@ export async function getGroupsAndTeamsAction(): Promise<{ groups: Group[]; team
 export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolean; message: string }> {
   try {
     const teamsSnapshot = await getDocs(collection(db, "equipos"));
-    const teams = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
+    // For auto-assignment, we only need team IDs, so full sanitization isn't strictly needed here
+    // as these team objects aren't directly returned to the client from this specific function.
+    // However, if we were fetching and then returning these teams, sanitization would be needed.
+    const teamsFromDb = teamsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Team));
 
-    if (teams.length === 0) {
+
+    if (teamsFromDb.length === 0) {
       return { success: false, message: "No hay equipos para asignar. Añade equipos primero." };
     }
     
-    const shuffledTeams = shuffleArray(teams);
+    const shuffledTeams = shuffleArray(teamsFromDb);
     const batch = writeBatch(db);
 
     const groupTeamAssignments: { [key: string]: string[] } = {};
@@ -161,3 +180,4 @@ export async function resetAndClearGroupsAction(): Promise<{ success: boolean; m
     return { success: false, message };
   }
 }
+
