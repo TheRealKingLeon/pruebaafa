@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
         hostname: 'static.lvp.global',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.clarin.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
