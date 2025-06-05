@@ -108,6 +108,8 @@ export default function ManageGroupsPage() {
     }
   };
 
+  const activeGroups = populatedGroups.filter(group => group.teams.length > 0);
+
 
   if (isLoading) {
     return (
@@ -182,23 +184,26 @@ export default function ManageGroupsPage() {
         </Card>
       )}
 
-      {allTeams.length > 0 && populatedGroups.length === 0 && !isLoading && !error && (
+      {allTeams.length > 0 && activeGroups.length === 0 && !isLoading && !error && (
          <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>No Hay Grupos Definidos</CardTitle>
+            <CardTitle>No Hay Equipos Asignados a Zonas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center py-10">
               <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No se encontraron grupos. Intenta recargar o asignar equipos.</p>
+              <p className="text-muted-foreground">Ninguna zona tiene equipos asignados actualmente.</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                 Usa el botón "Asignar Automáticamente" para distribuir los equipos disponibles.
+              </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {populatedGroups.length > 0 && (
+      {activeGroups.length > 0 && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {populatedGroups.map((group) => (
+          {activeGroups.map((group) => (
             <Card key={group.id} className="shadow-lg">
               <CardHeader className="bg-muted/30">
                 <CardTitle className="flex items-center gap-2 text-xl font-headline text-primary">
@@ -225,6 +230,8 @@ export default function ManageGroupsPage() {
                     ))}
                   </ul>
                 ) : (
+                  // This part might not be reached if activeGroups only contains groups with teams.
+                  // Kept for robustness, though unlikely to display.
                   <p className="text-sm text-muted-foreground text-center py-4">No hay equipos asignados a esta zona.</p>
                 )}
               </CardContent>
@@ -233,9 +240,10 @@ export default function ManageGroupsPage() {
         </div>
       )}
       <p className="text-sm text-muted-foreground italic mt-6">
-        Los grupos y sus equipos se guardan en Firestore. La asignación automática distribuirá los equipos disponibles entre las {populatedGroups.length} zonas (máximo 4 equipos por zona).
-        Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
+        Los grupos y sus equipos se guardan en Firestore. La asignación automática distribuirá los equipos disponibles entre las {populatedGroups.length} zonas definidas (máximo 4 equipos por zona).
+        Usa "Reiniciar Grupos" para limpiar todas las asignaciones. Las zonas sin equipos asignados no se mostrarán.
       </p>
     </div>
   );
 }
+
