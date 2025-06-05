@@ -34,14 +34,10 @@ function toClientSafeGroup(docSnap: import('firebase/firestore').QueryDocumentSn
 // Helper function to create a client-safe team object
 function toClientSafeTeam(docSnap: import('firebase/firestore').QueryDocumentSnapshot | import('firebase/firestore').DocumentSnapshot): Team {
     const data = docSnap.data();
-    // The player object is not populated here, so no need to sanitize it yet.
-    // If it were, player's Timestamps would also need handling.
     return {
         id: docSnap.id,
         name: data?.name || '',
         logoUrl: data?.logoUrl || '',
-        // player: data?.player, // If player was directly embedded and had Timestamps, it would need sanitization too
-        // createdAt and updatedAt are intentionally omitted as they are Timestamps
     };
 }
 
@@ -49,7 +45,7 @@ function toClientSafeTeam(docSnap: import('firebase/firestore').QueryDocumentSna
 export async function getGroupsAndTeamsAction(): Promise<{ groups: Group[]; teams: Team[]; error?: string }> {
   try {
     const teamsSnapshot = await getDocs(query(collection(db, "equipos"), orderBy("name")));
-    const teams = teamsSnapshot.docs.map(toClientSafeTeam); // Use helper to sanitize teams
+    const teams = teamsSnapshot.docs.map(toClientSafeTeam); 
 
     const groupsRef = collection(db, "grupos");
     let groups: Group[] = [];
@@ -96,9 +92,6 @@ export async function getGroupsAndTeamsAction(): Promise<{ groups: Group[]; team
 export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolean; message: string }> {
   try {
     const teamsSnapshot = await getDocs(collection(db, "equipos"));
-    // For auto-assignment, we only need team IDs, so full sanitization isn't strictly needed here
-    // as these team objects aren't directly returned to the client from this specific function.
-    // However, if we were fetching and then returning these teams, sanitization would be needed.
     const teamsFromDb = teamsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Team));
 
 
@@ -114,23 +107,32 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
       groupTeamAssignments[zoneId] = [];
     });
 
-    shuffledTeams.forEach((team, index) => {
-      const zoneIndex = index % TOTAL_ZONES;
-      const zoneId = DEFAULT_ZONE_IDS[zoneIndex];
-      if (groupTeamAssignments[zoneId].length < TEAMS_PER_ZONE) {
-        groupTeamAssignments[zoneId].push(team.id);
+    // Corrected distribution logic:
+    const teamsToAssign = [...shuffledTeams]; // Create a mutable copy
+
+    for (const zoneId of DEFAULT_ZONE_IDS) {
+      if (teamsToAssign.length === 0) {
+        break; // No more teams to assign, stop trying to fill zones
       }
-    });
+      const currentZoneAssignments = groupTeamAssignments[zoneId];
+      while (currentZoneAssignments.length < TEAMS_PER_ZONE && teamsToAssign.length > 0) {
+        const teamToAssign = teamsToAssign.shift(); // Get and remove the first team from the mutable list
+        if (teamToAssign) {
+          currentZoneAssignments.push(teamToAssign.id);
+        }
+      }
+    }
+    // End of corrected distribution logic
 
     for (let i = 0; i < TOTAL_ZONES; i++) {
       const zoneId = DEFAULT_ZONE_IDS[i];
-      const groupName = `Zona ${String.fromCharCode(65 + i)}`;
+      const groupName = `Zona ${String.fromCharCode(65 + i)}`; // Ensure group name is consistent
       const groupDocRef = doc(db, "grupos", zoneId);
       
       const groupDataUpdate = {
         name: groupName, 
         zoneId: zoneId, 
-        teamIds: groupTeamAssignments[zoneId] || [], 
+        teamIds: groupTeamAssignments[zoneId] || [], // Use the populated assignments
         updatedAt: serverTimestamp(),
       };
 
@@ -138,6 +140,8 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
       if (groupDocSnap.exists()) {
         batch.update(groupDocRef, groupDataUpdate);
       } else {
+        // This case should ideally be handled by getGroupsAndTeamsAction creating all groups initially
+        // But as a fallback, create it here if it's somehow missing.
         batch.set(groupDocRef, {
           ...groupDataUpdate,
           createdAt: serverTimestamp() 
