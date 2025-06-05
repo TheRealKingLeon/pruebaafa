@@ -265,7 +265,8 @@ export async function getTournamentHomePageData(): Promise<{
   error?: string;
 }> {
   try {
-    const now = Timestamp.now();
+    const now = new Date(); // Use JavaScript Date for client-side comparison
+    const nowTimestamp = Timestamp.fromDate(now); // For Firestore comparison if needed
 
     const liveQuery = query(
       collection(db, "matches"),
@@ -276,16 +277,13 @@ export async function getTournamentHomePageData(): Promise<{
     const upcomingQuery = query(
       collection(db, "matches"),
       where("status", "==", "upcoming"),
-      where("date", ">=", now),
-      // orderBy("date", "asc"), // Removed for index avoidance
-      limit(10)
+      // No date filter here, will filter in code
+      limit(20) // Fetch more to have enough after client-side date filtering
     );
     
     const pendingDateQuery = query(
       collection(db, "matches"),
       where("status", "==", "pending_date"),
-      // orderBy("groupName", "asc"), // Removed for index avoidance
-      // orderBy("matchday", "asc"), // Removed for index avoidance
       limit(10)
     );
 
@@ -296,27 +294,30 @@ export async function getTournamentHomePageData(): Promise<{
     ]);
     
     const liveSnapshot = promiseResults[0];
-    const upcomingSnapshot = promiseResults[1];
-    const pendingDateSnapshot = promiseResults[2];
+    let rawUpcomingMatchesDocs = promiseResults[1].docs;
+    const pendingDateSnapshot = promiseResults[2].docs;
     
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    rawLiveMatches.sort((a, b) => { // Manual sort by date
+    rawLiveMatches.sort((a, b) => { 
       if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
       if (a.date) return -1;
       if (b.date) return 1;
       return 0;
     });
 
-    const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    rawUpcomingMatches.sort((a, b) => { // Manual sort by date
+    let rawUpcomingMatches = rawUpcomingMatchesDocs
+        .map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }))
+        .filter(match => match.date && new Date(match.date as string) >= now); // Filter by date in code
+
+    rawUpcomingMatches.sort((a, b) => { 
         if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
         if (a.date) return -1;
         if (b.date) return 1;
         return 0;
     });
 
-    const rawPendingDateMatches = pendingDateSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    rawPendingDateMatches.sort((a, b) => { // Manual sort by groupName then matchday
+    const rawPendingDateMatches = pendingDateSnapshot.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    rawPendingDateMatches.sort((a, b) => { 
         const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
         if (groupCompare !== 0) return groupCompare;
         return (a.matchday || 0) - (b.matchday || 0);
