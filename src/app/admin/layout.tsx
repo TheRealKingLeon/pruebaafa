@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginForm } from '@/components/admin/LoginForm';
-import { Loader2 } from 'lucide-react'; // For loading state
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -12,7 +12,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
@@ -23,13 +23,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative">
-      <div className="absolute top-4 right-4 z-50">
+    <div className="min-h-screen flex flex-col bg-muted/40">
+      <header className="bg-card text-card-foreground p-3 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <h1 className="text-lg font-semibold text-primary">Panel de Administración</h1>
         <Button variant="outline" size="sm" onClick={logout}>
           Cerrar Sesión
         </Button>
-      </div>
-      {children}
+      </header>
+      <main className="flex-grow p-4 md:p-6">
+        {children}
+      </main>
     </div>
   );
 }
