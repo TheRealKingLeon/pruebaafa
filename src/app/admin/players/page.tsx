@@ -86,7 +86,7 @@ export default function ManagePlayersPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando jugadores desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando jugadores...</p>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function ManagePlayersPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Listado de Jugadores (0)</CardTitle>
-             <CardDescription>Aún no hay jugadores registrados en Firestore o asignados a clubes.</CardDescription>
+             <CardDescription>Aún no hay jugadores registrados o asignados a clubes.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-10">
@@ -133,7 +133,7 @@ export default function ManagePlayersPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Listado de Jugadores ({playersWithClubData.length})</CardTitle>
-          <CardDescription>Jugadores cargados desde la colección "jugadores" de Firestore.</CardDescription>
+          <CardDescription>Jugadores cargados desde la colección "jugadores".</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -191,7 +191,7 @@ export default function ManagePlayersPage() {
         </CardContent>
       </Card>
       <p className="text-sm text-muted-foreground italic mt-6">
-        La información de los jugadores se guarda en Firestore. Para añadir un nuevo jugador a un club, edita el club correspondiente.
+        La información de los jugadores se guarda en la base de datos. Para añadir un nuevo jugador a un club, edita el club correspondiente.
       </p>
     </div>
   );

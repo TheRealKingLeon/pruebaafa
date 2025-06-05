@@ -346,7 +346,7 @@ export function GroupManagementClient() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-400px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Cargando datos de grupos y equipos...</p>
+        <p className="text-lg text-muted-foreground">Cargando configuración de grupos...</p>
       </div>
     );
   }
@@ -450,7 +450,7 @@ export function GroupManagementClient() {
           <CardContent>
             <div className="text-center py-10">
               <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No hay equipos registrados en Firestore para asignar a los grupos.</p>
+              <p className="text-muted-foreground">No hay equipos registrados para asignar a los grupos.</p>
               <p className="text-sm text-muted-foreground mt-2">
                 Por favor, <Link href="/admin/clubs/add" className="underline hover:text-primary">añade clubes</Link> primero.
               </p>
@@ -545,5 +545,3 @@ export function GroupManagementClient() {
     </div>
   );
 }
-
-    

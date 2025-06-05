@@ -9,7 +9,7 @@ import type { Team, Player } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { Search, Loader2, AlertTriangle, Users, Button } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp
 import { useToast } from '@/hooks/use-toast';
@@ -133,7 +133,7 @@ export default function ParticipantsPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando participantes desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando participantes...</p>
       </div>
     );
   }
@@ -154,7 +154,7 @@ export default function ParticipantsPage() {
       <SectionTitle>Participantes del Torneo</SectionTitle>
       <p className="mb-6 text-muted-foreground">
         Conoce a los talentosos jugadores que representan a sus clubes en el AFA eSports Showdown.
-        Los datos se cargan desde Firestore.
+        Los datos se cargan desde la base de datos.
       </p>
 
       <div className="relative mb-6">

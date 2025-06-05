@@ -146,7 +146,7 @@ export default function ManageMatchesPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando datos desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando partidos...</p>
       </div>
     );
   }
@@ -168,7 +168,7 @@ export default function ManageMatchesPage() {
         <div className="flex justify-between items-center">
           <SectionTitle>Gestionar Partidos</SectionTitle>
           <Button asChild className="opacity-50 pointer-events-none" title="Próximamente: Añadir Partido Manual">
-            <Link href="/admin/matches/add"> {/* This link would be for a separate add page, not a modal currently */}
+            <Link href="#"> {/* This link would be for a separate add page, not a modal currently */}
               <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Partido
             </Link>
           </Button>
@@ -176,7 +176,7 @@ export default function ManageMatchesPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Listado de Partidos (0)</CardTitle>
-            <CardDescription>No hay partidos registrados en Firestore o no se generaron desde la fase de grupos.</CardDescription>
+            <CardDescription>No hay partidos registrados o no se generaron desde la fase de grupos.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-10">
@@ -243,7 +243,7 @@ export default function ManageMatchesPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Listado de Partidos ({filteredMatches ? filteredMatches.length : 0})</CardTitle>
-          <CardDescription>Partidos cargados desde Firestore. Aquí puedes editar fechas, horas, resultados y URLs de stream.</CardDescription>
+          <CardDescription>Partidos cargados. Aquí puedes editar fechas, horas, resultados y URLs de stream.</CardDescription>
         </CardHeader>
         <CardContent>
           {filteredMatches && filteredMatches.length > 0 ? (

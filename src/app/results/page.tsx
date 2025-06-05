@@ -82,7 +82,7 @@ export default function ResultsPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando partidos desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando partidos...</p>
       </div>
     );
   }
@@ -102,7 +102,7 @@ export default function ResultsPage() {
     <div className="space-y-8">
       <SectionTitle>Partidos: Resultados y Próximos Encuentros</SectionTitle>
       <p className="mb-6 text-muted-foreground">
-        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha. Los datos se cargan desde Firestore.
+        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha. Los datos se cargan desde la base de datos.
       </p>
 
       <Tabs defaultValue="upcoming" className="w-full">
@@ -259,5 +259,3 @@ export default function ResultsPage() {
     </div>
   );
 }
-
-    

@@ -94,7 +94,7 @@ export function PlayoffManagementClient() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-400px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Cargando datos de playoffs...</p>
+        <p className="text-lg text-muted-foreground">Cargando configuración de playoffs...</p>
       </div>
     );
   }

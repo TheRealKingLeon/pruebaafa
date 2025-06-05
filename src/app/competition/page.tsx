@@ -72,7 +72,7 @@ export default function CompetitionPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando datos de la competición desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando datos de posiciones...</p>
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function CompetitionPage() {
         <TabsContent value="group-stage" className="mt-6">
           <SectionTitle as="h3">Fase de Grupos</SectionTitle>
           <p className="mb-6 text-muted-foreground">
-            Los equipos se dividen en zonas y compiten en un formato de todos contra todos. Las tablas de posiciones se calculan dinámicamente a partir de los partidos completados en Firestore.
+            Los equipos se dividen en zonas y compiten en un formato de todos contra todos. Las tablas de posiciones se calculan dinámicamente a partir de los partidos completados.
           </p>
           
           {displayableGroups.length > 0 ? (

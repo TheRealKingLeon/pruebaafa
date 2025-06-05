@@ -88,7 +88,7 @@ export default function ManageClubsPage() {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando clubes desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando clubes...</p>
       </div>
     );
   }
@@ -118,7 +118,7 @@ export default function ManageClubsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Listado de Clubes (0)</CardTitle>
-            <CardDescription>Aún no hay clubes registrados en Firestore.</CardDescription>
+            <CardDescription>Aún no hay clubes registrados.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-10">
@@ -146,14 +146,14 @@ export default function ManageClubsPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Listado de Clubes ({clubs.length})</CardTitle>
-          <CardDescription>Clubes cargados desde la base de datos Firestore ("equipos").</CardDescription>
+          <CardDescription>Clubes cargados desde la base de datos ("equipos").</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[80px]">Logo</TableHead>
-                <TableHead>ID del Club (Firestore)</TableHead>
+                <TableHead>ID del Club</TableHead>
                 <TableHead>Nombre del Club</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -217,9 +217,8 @@ export default function ManageClubsPage() {
         </CardContent>
       </Card>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Los clubes se gestionan en Firestore. Para asignar o editar un jugador de un club, usa el botón <UserCog className="inline h-4 w-4" />.
+        Los clubes se gestionan en la base de datos. Para asignar o editar un jugador de un club, usa el botón <UserCog className="inline h-4 w-4" />.
       </p>
     </div>
   );
 }
-
