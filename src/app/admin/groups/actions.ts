@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, runTransaction } from 'firebase/firestore';
 import type { Group, Team } from '@/types';
 
 const TOTAL_ZONES = 8;
@@ -103,27 +103,22 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
     
     const groupTeamAssignments: { [key: string]: string[] } = {};
     DEFAULT_ZONE_IDS.forEach(zoneId => {
-      groupTeamAssignments[zoneId] = []; // Initialize all zones with empty team arrays
+      groupTeamAssignments[zoneId] = [];
     });
 
-    // Sequential distribution logic
     const teamsToAssign = [...shuffledTeams]; 
     let currentTeamIdx = 0;
 
     for (const zoneId of DEFAULT_ZONE_IDS) {
-      // No need to check teamsToAssign.length here, inner loop handles it
-      // currentZoneAssignments is a direct reference to groupTeamAssignments[zoneId]
       const currentZoneAssignments = groupTeamAssignments[zoneId]; 
       while (currentZoneAssignments.length < TEAMS_PER_ZONE && currentTeamIdx < teamsToAssign.length) {
         currentZoneAssignments.push(teamsToAssign[currentTeamIdx].id);
         currentTeamIdx++;
       }
-      // If all teams are assigned, no need to process more zones for assignment
       if (currentTeamIdx >= teamsToAssign.length) {
         break; 
       }
     }
-    // End of distribution logic
 
     const batch = writeBatch(db);
     for (let i = 0; i < TOTAL_ZONES; i++) {
@@ -131,7 +126,6 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
       const groupName = `Zona ${String.fromCharCode(65 + i)}`; 
       const groupDocRef = doc(db, "grupos", zoneId);
       
-      // Ensure teamIds is always an array, even if groupTeamAssignments[zoneId] was not populated (e.g. not enough teams)
       const assignedTeamIds = groupTeamAssignments[zoneId] || []; 
       
       const groupDataUpdate = {
@@ -184,6 +178,71 @@ export async function resetAndClearGroupsAction(): Promise<{ success: boolean; m
   } catch (error) {
     console.error("Error in resetAndClearGroupsAction:", error);
     const message = error instanceof Error ? error.message : "Error desconocido al limpiar los grupos.";
+    return { success: false, message };
+  }
+}
+
+export async function manualMoveTeamAction(payload: {
+  teamId: string;
+  sourceGroupId: string;
+  targetGroupId: string;
+}): Promise<{ success: boolean; message: string }> {
+  const { teamId, sourceGroupId, targetGroupId } = payload;
+
+  if (sourceGroupId === targetGroupId) {
+    return { success: false, message: "El equipo ya está en este grupo." };
+  }
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const sourceGroupRef = doc(db, "grupos", sourceGroupId);
+      const targetGroupRef = doc(db, "grupos", targetGroupId);
+
+      const [sourceGroupSnap, targetGroupSnap] = await Promise.all([
+        transaction.get(sourceGroupRef),
+        transaction.get(targetGroupRef),
+      ]);
+
+      if (!sourceGroupSnap.exists()) {
+        throw new Error(`Grupo de origen (ID: ${sourceGroupId}) no encontrado.`);
+      }
+      if (!targetGroupSnap.exists()) {
+        throw new Error(`Grupo de destino (ID: ${targetGroupId}) no encontrado.`);
+      }
+
+      const sourceGroupData = sourceGroupSnap.data() as Group;
+      const targetGroupData = targetGroupSnap.data() as Group;
+
+      // Check if target group is full
+      if (targetGroupData.teamIds.length >= TEAMS_PER_ZONE) {
+        throw new Error(`El grupo de destino "${targetGroupData.name}" está lleno (máximo ${TEAMS_PER_ZONE} equipos).`);
+      }
+      
+      // Check if team already in target group (should not happen if source and target are different and team is in source)
+      if (targetGroupData.teamIds.includes(teamId)) {
+         throw new Error(`El equipo ya se encuentra en el grupo de destino "${targetGroupData.name}".`);
+      }
+
+
+      // Remove team from source group
+      const newSourceTeamIds = sourceGroupData.teamIds.filter(id => id !== teamId);
+      transaction.update(sourceGroupRef, {
+        teamIds: newSourceTeamIds,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Add team to target group
+      const newTargetTeamIds = [...targetGroupData.teamIds, teamId];
+      transaction.update(targetGroupRef, {
+        teamIds: newTargetTeamIds,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    return { success: true, message: "Equipo movido exitosamente." };
+  } catch (error) {
+    console.error("Error in manualMoveTeamAction:", error);
+    const message = error instanceof Error ? error.message : "Error desconocido al mover el equipo.";
     return { success: false, message };
   }
 }

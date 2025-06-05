@@ -1,15 +1,15 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type DragEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw } from 'lucide-react';
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move } from 'lucide-react';
 import type { Team, Group as GroupType } from '@/types';
-import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction } from './actions';
+import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -36,6 +36,11 @@ export default function ManageGroupsPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Drag and Drop state
+  const [draggedTeam, setDraggedTeam] = useState<Team | null>(null);
+  const [sourceGroupId, setSourceGroupId] = useState<string | null>(null);
+
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -55,8 +60,8 @@ export default function ManageGroupsPage() {
         const groupTeams = group.teamIds
           .map(teamId => teams.find(t => t.id === teamId))
           .filter(Boolean) as Team[]; 
-        return { ...group, teams: groupTeams };
-      });
+        return { ...group, id: group.id, name: group.name, zoneId: group.zoneId, teams: groupTeams };
+      }).sort((a,b) => a.name.localeCompare(b.name)); // Ensure groups are sorted by name
       setPopulatedGroups(populated);
 
     } catch (err) {
@@ -107,6 +112,79 @@ export default function ManageGroupsPage() {
       setIsResetting(false);
     }
   };
+  
+  const onDragStart = (e: DragEvent<HTMLLIElement>, team: Team, currentGroupId: string) => {
+    e.dataTransfer.setData('teamId', team.id);
+    e.dataTransfer.setData('sourceGroupId', currentGroupId);
+    setDraggedTeam(team);
+    setSourceGroupId(currentGroupId);
+    // Visual feedback for dragging
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const onDragEnd = (e: DragEvent<HTMLLIElement>) => {
+    // Reset visual feedback
+    e.currentTarget.style.opacity = '1';
+    setDraggedTeam(null);
+    setSourceGroupId(null);
+  };
+
+  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const onDrop = async (e: DragEvent<HTMLDivElement>, targetGroupId: string) => {
+    e.preventDefault();
+    const teamId = e.dataTransfer.getData('teamId');
+    const currentSourceGroupId = e.dataTransfer.getData('sourceGroupId');
+
+    if (!teamId || !currentSourceGroupId || !targetGroupId || currentSourceGroupId === targetGroupId) {
+      console.log("Drop cancelled: missing data or same group");
+      return;
+    }
+
+    const targetGroup = populatedGroups.find(g => g.id === targetGroupId);
+    if (targetGroup && targetGroup.teams.length >= 4) { // TEAMS_PER_ZONE is 4
+      toast({ title: "Grupo Lleno", description: `El grupo "${targetGroup.name}" ya tiene 4 equipos.`, variant: "destructive" });
+      return;
+    }
+    
+    if (targetGroup && targetGroup.teams.find(t => t.id === teamId)) {
+       toast({ title: "Equipo Duplicado", description: `El equipo ya está en el grupo "${targetGroup.name}".`, variant: "destructive" });
+       return;
+    }
+
+
+    // Optimistic UI update
+    setPopulatedGroups(prevGroups => {
+      const newGroups = prevGroups.map(g => ({...g, teams: [...g.teams]})); // Deep copy for safety
+      
+      const sourceGroupIndex = newGroups.findIndex(g => g.id === currentSourceGroupId);
+      const targetGroupIndex = newGroups.findIndex(g => g.id === targetGroupId);
+      const teamToMove = allTeams.find(t => t.id === teamId);
+
+      if (sourceGroupIndex !== -1 && targetGroupIndex !== -1 && teamToMove) {
+        // Remove from source
+        newGroups[sourceGroupIndex].teams = newGroups[sourceGroupIndex].teams.filter(t => t.id !== teamId);
+        // Add to target
+        newGroups[targetGroupIndex].teams.push(teamToMove);
+      }
+      return newGroups;
+    });
+
+    // Call server action
+    const result = await manualMoveTeamAction({ teamId, sourceGroupId: currentSourceGroupId, targetGroupId });
+    if (result.success) {
+      toast({ title: "Equipo Movido", description: result.message });
+      // Optionally, re-fetch data to ensure consistency if optimistic update is complex
+      // await fetchData(); 
+    } else {
+      toast({ title: "Error al Mover", description: result.message, variant: "destructive" });
+      // Revert optimistic update if server action fails
+      await fetchData(); // Re-fetch to get the correct server state
+    }
+  };
+
 
   const activeGroups = populatedGroups.filter(group => group.teams.length > 0);
 
@@ -201,47 +279,58 @@ export default function ManageGroupsPage() {
         </Card>
       )}
 
-      {activeGroups.length > 0 && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {activeGroups.map((group) => (
-            <Card key={group.id} className="shadow-lg">
-              <CardHeader className="bg-muted/30">
-                <CardTitle className="flex items-center gap-2 text-xl font-headline text-primary">
-                  <Users className="h-6 w-6" />
-                  {group.name}
-                </CardTitle>
-                <CardDescription>Equipos asignados: {group.teams.length} / 4</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {group.teams.length > 0 ? (
-                  <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {group.teams.map((team) => (
-                      <li key={team.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors">
-                        <Image
-                          src={team.logoUrl || "https://placehold.co/32x32.png?text=?"}
-                          alt={`${team.name} logo`}
-                          width={28}
-                          height={28}
-                          className="rounded-sm object-contain bg-muted p-0.5"
-                          data-ai-hint={team.name.toLowerCase().includes("river") || team.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
-                        />
-                        <span className="text-sm font-medium truncate">{team.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  // This part might not be reached if activeGroups only contains groups with teams.
-                  // Kept for robustness, though unlikely to display.
-                  <p className="text-sm text-muted-foreground text-center py-4">No hay equipos asignados a esta zona.</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {populatedGroups.map((group) => ( // Display all groups for droppability, filter for display if empty later
+          <Card 
+            key={group.id} 
+            className={`shadow-lg ${group.teams.length === 0 ? 'opacity-70 border-dashed' : ''}`}
+            onDragOver={onDragOver}
+            onDrop={(e) => onDrop(e, group.id)}
+            data-groupid={group.id}
+          >
+            <CardHeader className="bg-muted/30">
+              <CardTitle className="flex items-center gap-2 text-xl font-headline text-primary">
+                <Users className="h-6 w-6" />
+                {group.name}
+              </CardTitle>
+              <CardDescription>Equipos asignados: {group.teams.length} / 4</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 min-h-[150px]"> {/* min-height for drop area */}
+              {group.teams.length > 0 ? (
+                <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {group.teams.map((team) => (
+                    <li 
+                      key={team.id} 
+                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors cursor-grab ${draggedTeam?.id === team.id ? 'opacity-50' : ''}`}
+                      draggable="true"
+                      onDragStart={(e) => onDragStart(e, team, group.id)}
+                      onDragEnd={onDragEnd}
+                    >
+                      <Move className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <Image
+                        src={team.logoUrl || "https://placehold.co/32x32.png?text=?"}
+                        alt={`${team.name} logo`}
+                        width={28}
+                        height={28}
+                        className="rounded-sm object-contain bg-muted p-0.5"
+                        data-ai-hint={team.name.toLowerCase().includes("river") || team.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                      />
+                      <span className="text-sm font-medium truncate">{team.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {draggedTeam ? `Arrastra aquí para mover a ${group.name}` : 'Zona vacía. Arrastra equipos aquí.'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Los grupos y sus equipos se guardan en Firestore. La asignación automática distribuirá los equipos disponibles entre las {populatedGroups.length} zonas definidas (máximo 4 equipos por zona).
-        Usa "Reiniciar Grupos" para limpiar todas las asignaciones. Las zonas sin equipos asignados no se mostrarán.
+        Puedes arrastrar y soltar equipos entre las zonas. Cada zona tiene un máximo de 4 equipos. Las zonas se guardan en Firestore.
+        Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
       </p>
     </div>
   );
