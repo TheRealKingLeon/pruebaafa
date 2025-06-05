@@ -2,12 +2,12 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import type { Group, Team } from '@/types';
 
 const TOTAL_ZONES = 8;
-const TEAMS_PER_ZONE = 4; // Changed from 8 to 4 for testing
-const DEFAULT_ZONE_IDS = Array.from({ length: TOTAL_ZONES }, (_, i) => `zona-${String.fromCharCode(97 + i)}`); // zona-a, zona-b, ...
+const TEAMS_PER_ZONE = 4; 
+const DEFAULT_ZONE_IDS = Array.from({ length: TOTAL_ZONES }, (_, i) => `zona-${String.fromCharCode(97 + i)}`); 
 
 // Helper function to shuffle an array
 function shuffleArray<T>(array: T[]): T[] {
@@ -22,18 +22,11 @@ function shuffleArray<T>(array: T[]): T[] {
 // Helper function to create a client-safe group object
 function toClientSafeGroup(docSnap: import('firebase/firestore').QueryDocumentSnapshot | import('firebase/firestore').DocumentSnapshot): Group {
   const data = docSnap.data();
-  // Explicitly construct the Group object to be returned to the client,
-  // omitting or converting complex server-side objects like Timestamps.
   return {
     id: docSnap.id,
     name: data?.name || '',
     zoneId: data?.zoneId || '',
     teamIds: data?.teamIds || [],
-    // createdAt and updatedAt are intentionally omitted as they are not used by the client
-    // and cause serialization issues if passed as Firestore Timestamp objects.
-    // If they were needed, they would be converted to strings:
-    // createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : undefined,
-    // updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : undefined,
   };
 }
 
@@ -97,7 +90,6 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
     const shuffledTeams = shuffleArray(teams);
     const batch = writeBatch(db);
 
-    // Distribute teams more like dealing cards
     const groupTeamAssignments: { [key: string]: string[] } = {};
     DEFAULT_ZONE_IDS.forEach(zoneId => {
       groupTeamAssignments[zoneId] = [];
@@ -117,9 +109,9 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
       const groupDocRef = doc(db, "grupos", zoneId);
       
       const groupDataUpdate = {
-        name: groupName, // Ensure name is set/updated
-        zoneId: zoneId, // Ensure zoneId is set/updated
-        teamIds: groupTeamAssignments[zoneId] || [], // Use the dynamically assigned teams
+        name: groupName, 
+        zoneId: zoneId, 
+        teamIds: groupTeamAssignments[zoneId] || [], 
         updatedAt: serverTimestamp(),
       };
 
@@ -144,3 +136,28 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
   }
 }
 
+export async function resetAndClearGroupsAction(): Promise<{ success: boolean; message: string }> {
+  try {
+    const groupsRef = collection(db, "grupos");
+    const groupsSnapshot = await getDocs(groupsRef);
+    
+    if (groupsSnapshot.empty) {
+      return { success: true, message: "No hay grupos para limpiar (la colección 'grupos' está vacía o no existe)." };
+    }
+
+    const batch = writeBatch(db);
+    groupsSnapshot.forEach(groupDoc => {
+      batch.update(groupDoc.ref, {
+        teamIds: [],
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+    return { success: true, message: "Todos los grupos han sido limpiados y los equipos desasignados con éxito." };
+  } catch (error) {
+    console.error("Error in resetAndClearGroupsAction:", error);
+    const message = error instanceof Error ? error.message : "Error desconocido al limpiar los grupos.";
+    return { success: false, message };
+  }
+}

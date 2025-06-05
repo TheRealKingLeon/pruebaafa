@@ -7,10 +7,21 @@ import Link from 'next/link';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info } from 'lucide-react';
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw } from 'lucide-react';
 import type { Team, Group as GroupType } from '@/types';
-import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction } from './actions';
+import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
@@ -21,6 +32,7 @@ export default function ManageGroupsPage() {
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -42,7 +54,7 @@ export default function ManageGroupsPage() {
       const populated = firestoreGroups.map(group => {
         const groupTeams = group.teamIds
           .map(teamId => teams.find(t => t.id === teamId))
-          .filter(Boolean) as Team[]; // Filter out undefined if a teamId is stale
+          .filter(Boolean) as Team[]; 
         return { ...group, teams: groupTeams };
       });
       setPopulatedGroups(populated);
@@ -66,7 +78,7 @@ export default function ManageGroupsPage() {
       const result = await autoAssignTeamsToGroupsAction();
       if (result.success) {
         toast({ title: "Asignación Exitosa", description: result.message });
-        await fetchData(); // Refresh data
+        await fetchData(); 
       } else {
         toast({ title: "Error en Asignación", description: result.message, variant: "destructive" });
       }
@@ -77,6 +89,25 @@ export default function ManageGroupsPage() {
       setIsAssigning(false);
     }
   };
+
+  const handleResetGroups = async () => {
+    setIsResetting(true);
+    try {
+      const result = await resetAndClearGroupsAction();
+      if (result.success) {
+        toast({ title: "Grupos Limpiados", description: result.message });
+        await fetchData(); 
+      } else {
+        toast({ title: "Error al Limpiar Grupos", description: result.message, variant: "destructive" });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido al limpiar los grupos.";
+      toast({ title: "Error Inesperado", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -102,10 +133,36 @@ export default function ManageGroupsPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <SectionTitle>Gestionar Grupos (Zonas)</SectionTitle>
-        <Button onClick={handleAutoAssign} disabled={isAssigning || allTeams.length === 0} className="w-full sm:w-auto">
-          <Shuffle className="mr-2 h-5 w-5" />
-          {isAssigning ? "Asignando Equipos..." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar Equipos Automáticamente")}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button onClick={handleAutoAssign} disabled={isAssigning || allTeams.length === 0} className="w-full sm:w-auto">
+            <Shuffle className="mr-2 h-5 w-5" />
+            {isAssigning ? "Asignando..." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar Automáticamente")}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isResetting} className="w-full sm:w-auto">
+                <RotateCcw className="mr-2 h-5 w-5" />
+                {isResetting ? "Limpiando..." : "Reiniciar Grupos"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro de limpiar los grupos?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción desasignará todos los equipos de todas las zonas.
+                  La asignación automática deberá realizarse nuevamente si deseas llenarlos.
+                  Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetGroups} disabled={isResetting}>
+                  Sí, limpiar grupos
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
       
       {allTeams.length === 0 && !isLoading && (
@@ -148,7 +205,7 @@ export default function ManageGroupsPage() {
                   <Users className="h-6 w-6" />
                   {group.name}
                 </CardTitle>
-                <CardDescription>Equipos asignados: {group.teams.length} / 8</CardDescription>
+                <CardDescription>Equipos asignados: {group.teams.length} / 4</CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
                 {group.teams.length > 0 ? (
@@ -176,8 +233,8 @@ export default function ManageGroupsPage() {
         </div>
       )}
       <p className="text-sm text-muted-foreground italic mt-6">
-        Los grupos y sus equipos se guardan en Firestore. La asignación automática distribuirá los equipos disponibles entre las 8 zonas.
-        La funcionalidad para reemplazar equipos manualmente se implementará próximamente.
+        Los grupos y sus equipos se guardan en Firestore. La asignación automática distribuirá los equipos disponibles entre las {populatedGroups.length} zonas (máximo 4 equipos por zona).
+        Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
       </p>
     </div>
   );
