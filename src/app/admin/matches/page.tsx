@@ -51,15 +51,34 @@ export default function ManageMatchesPage() {
       });
       setAllMatches([]);
     } else {
+      // Enhanced client-side sorting
       const sortedMatches = result.matches.sort((a, b) => {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        // Sort by date primarily, then by status (pending_date last)
-        if (dateB !== dateA) return dateB - dateA;
-        if (a.status === 'pending_date' && b.status !== 'pending_date') return 1;
-        if (b.status === 'pending_date' && a.status !== 'pending_date') return -1;
-        return 0;
+        const aHasDate = !!a.date;
+        const bHasDate = !!b.date;
+
+        // 1. Sort by whether they have a date or not (TBD last)
+        if (aHasDate && !bHasDate) return -1; 
+        if (!aHasDate && bHasDate) return 1;  
+
+        // 2. If both have dates, sort by date descending (most recent first)
+        if (aHasDate && bHasDate) {
+          const dateA = new Date(a.date!).getTime(); 
+          const dateB = new Date(b.date!).getTime(); 
+          if (dateA !== dateB) {
+            return dateB - dateA;
+          }
+        }
+
+        // 3. If both are TBD (or have the same exact timestamp), sort by groupName (alphabetical)
+        const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
+        if (groupCompare !== 0) {
+          return groupCompare;
+        }
+
+        // 4. If groupName is also the same, sort by matchday (ascending)
+        return (a.matchday || 0) - (b.matchday || 0);
       });
+
       setAllMatches(sortedMatches);
       const uniqueGroups = Array.from(new Set(sortedMatches.map(m => m.groupName).filter(Boolean) as string[])).sort();
       setAvailableGroups(uniqueGroups);
