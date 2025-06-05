@@ -14,7 +14,8 @@ import { ArrowLeft, Save, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import type { Match, Team } from '@/types';
 import { mockMatches, mockTeams } from '@/data/mock'; // Will be replaced with Firestore actions
-import { updateMatchAction, matchFormSchema, type EditMatchFormInput } from '../../actions'; // Corrected schema import
+import { updateMatchAction } from '../../actions'; 
+import { matchFormSchema, type EditMatchFormInput } from '../../schemas'; // Import from new schemas file
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -49,6 +50,7 @@ export default function EditMatchPage() {
           score2: foundMatch.score2,
           date: localDateTime,
           status: foundMatch.status,
+          streamUrl: foundMatch.streamUrl || '',
         });
       } else {
         setError("Partido no encontrado (simulación).");
@@ -203,7 +205,7 @@ export default function EditMatchPage() {
                 {...register("status")}
                 className={`w-full rounded-md border p-2 ${errors.status ? 'border-destructive' : 'border-input'}`}
                 onChange={(e) => {
-                    const newStatus = e.target.value as 'upcoming' | 'live' | 'completed';
+                    const newStatus = e.target.value as 'upcoming' | 'live' | 'completed' | 'pending_date';
                     setValue("status", newStatus);
                     if (newStatus !== 'completed') {
                         setValue("score1", undefined);
@@ -211,11 +213,24 @@ export default function EditMatchPage() {
                     }
                 }}
               >
+                <option value="pending_date">Fecha Pendiente</option>
                 <option value="upcoming">Próximo</option>
                 <option value="live">En Vivo</option>
                 <option value="completed">Finalizado</option>
               </select>
               {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="streamUrl">URL del Stream (Opcional)</Label>
+              <Input
+                id="streamUrl"
+                type="url"
+                {...register("streamUrl")}
+                placeholder="https://twitch.tv/canal_ejemplo"
+                className={errors.streamUrl ? 'border-destructive' : ''}
+              />
+              {errors.streamUrl && <p className="text-sm text-destructive">{errors.streamUrl.message}</p>}
             </div>
 
           </CardContent>
