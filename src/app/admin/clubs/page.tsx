@@ -8,8 +8,8 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle } from 'lucide-react';
-import type { Team } from '@/types'; // Team type might not include 'player' if fetched from 'equipos' directly
+import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle, UserCog } from 'lucide-react';
+import type { Team } from '@/types'; 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { deleteClubAction } from './actions';
@@ -26,9 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-interface ClubDocument extends Omit<Team, 'player' | 'id'> { // 'player' is not in 'equipos' docs
+interface ClubDocument extends Omit<Team, 'player' | 'id'> { 
   id: string;
-  // Firestore timestamps are not directly Date objects on client unless converted
   createdAt?: any; 
   updatedAt?: any;
 }
@@ -176,17 +175,23 @@ export default function ManageClubsPage() {
                   <TableCell className="font-mono text-xs">{club.id}</TableCell>
                   <TableCell className="font-medium">{club.name}</TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="outline" size="sm" asChild>
+                    <Button variant="outline" size="sm" asChild title="Editar Club">
                       <Link href={`/admin/clubs/edit/${club.id}`}>
                         <Edit className="h-4 w-4" />
-                        <span className="sr-only">Editar</span>
+                        <span className="sr-only">Editar Club</span>
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild title="Gestionar Jugador">
+                      <Link href={`/admin/players/edit/${club.id}`}>
+                        <UserCog className="h-4 w-4" />
+                        <span className="sr-only">Gestionar Jugador</span>
                       </Link>
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" size="sm" title="Eliminar Club">
                           <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Eliminar</span>
+                          <span className="sr-only">Eliminar Club</span>
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -212,8 +217,9 @@ export default function ManageClubsPage() {
         </CardContent>
       </Card>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Los clubes ahora se gestionan directamente en Firestore. Las eliminaciones son permanentes.
+        Los clubes se gestionan en Firestore. Para asignar o editar un jugador de un club, usa el botón <UserCog className="inline h-4 w-4" />.
       </p>
     </div>
   );
 }
+
