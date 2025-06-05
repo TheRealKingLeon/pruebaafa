@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
 import type { Group, Team } from '@/types';
 
 const TOTAL_ZONES = 8;
@@ -27,7 +27,7 @@ function toClientSafeGroup(docSnap: import('firebase/firestore').QueryDocumentSn
     name: data?.name || '',
     zoneId: data?.zoneId || '',
     teamIds: data?.teamIds || [],
-    // createdAt and updatedAt are intentionally omitted as they are Timestamps
+    // createdAt and updatedAt are intentionally omitted
   };
 }
 
@@ -38,6 +38,7 @@ function toClientSafeTeam(docSnap: import('firebase/firestore').QueryDocumentSna
         id: docSnap.id,
         name: data?.name || '',
         logoUrl: data?.logoUrl || '',
+        // player, createdAt, and updatedAt are intentionally omitted
     };
 }
 
@@ -94,45 +95,49 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
     const teamsSnapshot = await getDocs(collection(db, "equipos"));
     const teamsFromDb = teamsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Team));
 
-
     if (teamsFromDb.length === 0) {
       return { success: false, message: "No hay equipos para asignar. Añade equipos primero." };
     }
     
     const shuffledTeams = shuffleArray(teamsFromDb);
-    const batch = writeBatch(db);
-
+    
     const groupTeamAssignments: { [key: string]: string[] } = {};
     DEFAULT_ZONE_IDS.forEach(zoneId => {
-      groupTeamAssignments[zoneId] = [];
+      groupTeamAssignments[zoneId] = []; // Initialize all zones with empty team arrays
     });
 
-    // Corrected distribution logic:
-    const teamsToAssign = [...shuffledTeams]; // Create a mutable copy
+    // Sequential distribution logic
+    const teamsToAssign = [...shuffledTeams]; 
+    let currentTeamIdx = 0;
 
     for (const zoneId of DEFAULT_ZONE_IDS) {
-      if (teamsToAssign.length === 0) {
-        break; // No more teams to assign, stop trying to fill zones
+      // No need to check teamsToAssign.length here, inner loop handles it
+      // currentZoneAssignments is a direct reference to groupTeamAssignments[zoneId]
+      const currentZoneAssignments = groupTeamAssignments[zoneId]; 
+      while (currentZoneAssignments.length < TEAMS_PER_ZONE && currentTeamIdx < teamsToAssign.length) {
+        currentZoneAssignments.push(teamsToAssign[currentTeamIdx].id);
+        currentTeamIdx++;
       }
-      const currentZoneAssignments = groupTeamAssignments[zoneId];
-      while (currentZoneAssignments.length < TEAMS_PER_ZONE && teamsToAssign.length > 0) {
-        const teamToAssign = teamsToAssign.shift(); // Get and remove the first team from the mutable list
-        if (teamToAssign) {
-          currentZoneAssignments.push(teamToAssign.id);
-        }
+      // If all teams are assigned, no need to process more zones for assignment
+      if (currentTeamIdx >= teamsToAssign.length) {
+        break; 
       }
     }
-    // End of corrected distribution logic
+    // End of distribution logic
 
+    const batch = writeBatch(db);
     for (let i = 0; i < TOTAL_ZONES; i++) {
       const zoneId = DEFAULT_ZONE_IDS[i];
-      const groupName = `Zona ${String.fromCharCode(65 + i)}`; // Ensure group name is consistent
+      const groupName = `Zona ${String.fromCharCode(65 + i)}`; 
       const groupDocRef = doc(db, "grupos", zoneId);
+      
+      // Ensure teamIds is always an array, even if groupTeamAssignments[zoneId] was not populated (e.g. not enough teams)
+      const assignedTeamIds = groupTeamAssignments[zoneId] || []; 
       
       const groupDataUpdate = {
         name: groupName, 
         zoneId: zoneId, 
-        teamIds: groupTeamAssignments[zoneId] || [], // Use the populated assignments
+        teamIds: assignedTeamIds,
         updatedAt: serverTimestamp(),
       };
 
@@ -140,8 +145,6 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
       if (groupDocSnap.exists()) {
         batch.update(groupDocRef, groupDataUpdate);
       } else {
-        // This case should ideally be handled by getGroupsAndTeamsAction creating all groups initially
-        // But as a fallback, create it here if it's somehow missing.
         batch.set(groupDocRef, {
           ...groupDataUpdate,
           createdAt: serverTimestamp() 
@@ -184,4 +187,3 @@ export async function resetAndClearGroupsAction(): Promise<{ success: boolean; m
     return { success: false, message };
   }
 }
-
