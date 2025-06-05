@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
+import { Menu, Cog } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'INICIO' },
@@ -11,6 +11,7 @@ const navItems = [
   { href: '/participants', label: 'EQUIPOS' },
   { href: '/competition', label: 'PARTIDOS' },
   { href: '/contact', label: 'CONTACTO' },
+  { href: '/admin', label: 'ADMIN', icon: Cog },
 ];
 
 export function Header() {
@@ -38,7 +39,10 @@ export function Header() {
               asChild
               className="text-foreground hover:text-primary font-bold uppercase text-base lg:text-lg tracking-wider px-3 py-2 transition-colors duration-150"
             >
-              <Link href={item.href}>{item.label}</Link>
+              <Link href={item.href}>
+                {item.icon && <item.icon className="mr-2 h-5 w-5" />}
+                {item.label}
+              </Link>
             </Button>
           ))}
         </div>
@@ -66,7 +70,10 @@ export function Header() {
                     className="w-full justify-start text-muted-foreground hover:text-foreground font-bold uppercase text-xl py-3"
                     asChild
                   >
-                    <Link href={item.href}>{item.label}</Link>
+                    <Link href={item.href}>
+                      {item.icon && <item.icon className="mr-3 h-5 w-5" />}
+                      {item.label}
+                    </Link>
                   </Button>
                 ))}
               </nav>
