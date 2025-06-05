@@ -35,8 +35,9 @@ interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
 }
 
-const TEAMS_PER_ZONE_CLIENT = 4; 
-const MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE = 2;
+const TEAMS_PER_ZONE_CLIENT = 8; // Max teams per zone
+const MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT = 4; // Min teams in a zone for it to be seedable
+const MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT = 2; // Min seedable zones to enable global seed button
 
 export function GroupManagementClient() {
   const [populatedGroups, setPopulatedGroups] = useState<PopulatedGroup[]>([]);
@@ -273,7 +274,7 @@ export function GroupManagementClient() {
          return prevGroups;
       }
 
-      const targetIsFull = targetGroup.teams.length >= TEAMS_PER_ZONE_CLIENT;
+      const targetIsFull = targetGroup.teams.length >= TEAMS_PER_ZONE_CLIENT; // Use TEAMS_PER_ZONE_CLIENT (8)
 
       if (targetIsFull) {
         let teamToSwapOutClient: Team | undefined;
@@ -320,24 +321,22 @@ export function GroupManagementClient() {
     await fetchInitialData(); 
   };
 
-  const completedZonesCount = populatedGroups.filter(g => g.teams.length === TEAMS_PER_ZONE_CLIENT).length;
-  
-  console.log("--- Debugging canSeedGroups ---");
-  console.log("Current Time:", new Date().toLocaleTimeString());
-  console.log("1. groupsSeeded (from state):", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
-  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE (${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})? ${populatedGroups.length >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})`);
-  console.log("3. TEAMS_PER_ZONE_CLIENT:", TEAMS_PER_ZONE_CLIENT);
-  console.log("4. completedZonesCount (zones with 4 teams):", completedZonesCount, `(>= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE (${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})? ${completedZonesCount >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE})`);
-  console.log("5. allTeams.length:", allTeams.length);
-  const requiredTeamsForMinZones = MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE * TEAMS_PER_ZONE_CLIENT;
-  console.log("6. Required teams for min zones (MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE * TEAMS_PER_ZONE_CLIENT):", requiredTeamsForMinZones);
-  console.log("7. allTeams.length >= required teams?", allTeams.length >= requiredTeamsForMinZones);
+  const zonesWithEnoughTeamsForSeedCount = populatedGroups.filter(g => g.teams.length >= MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT).length;
+  const requiredTeamsForMinZonesToSeed = MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT * MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT;
   
   const canSeedGroups = !groupsSeeded &&
-    populatedGroups.length >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE &&
-    completedZonesCount >= MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE &&
-    allTeams.length >= requiredTeamsForMinZones;
+    populatedGroups.length >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT &&
+    zonesWithEnoughTeamsForSeedCount >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT &&
+    allTeams.length >= requiredTeamsForMinZonesToSeed;
   
+  console.log("--- Debugging canSeedGroups (Client) ---");
+  console.log("Current Time:", new Date().toLocaleTimeString());
+  console.log("1. groupsSeeded (from state):", groupsSeeded, `(!groupsSeeded is ${!groupsSeeded})`);
+  console.log("2. populatedGroups.length:", populatedGroups.length, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${populatedGroups.length >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
+  console.log("3. zonesWithEnoughTeamsForSeedCount (zones with >= MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT teams):", zonesWithEnoughTeamsForSeedCount, `(>= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT (${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})? ${zonesWithEnoughTeamsForSeedCount >= MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT})`);
+  console.log("4. allTeams.length:", allTeams.length);
+  console.log("5. Required teams for min zones to seed (MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT * MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT):", requiredTeamsForMinZonesToSeed);
+  console.log("6. allTeams.length >= requiredTeamsForMinZonesToSeed?", allTeams.length >= requiredTeamsForMinZonesToSeed);
   console.log("Final canSeedGroups result:", canSeedGroups);
   console.log("-----------------------------");
 
@@ -431,7 +430,7 @@ export function GroupManagementClient() {
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
             title={
                 groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." :
-                (!canSeedGroups && populatedGroups.length > 0) ? `Se requieren al menos ${MINIMUM_ZONES_TO_SEED_FOR_BUTTON_ENABLE} zonas completas (${TEAMS_PER_ZONE_CLIENT} equipos c/u) y ${requiredTeamsForMinZones} equipos en total para el seed. Revisa la consola para más detalles.` :
+                (!canSeedGroups && populatedGroups.length > 0) ? `Se requieren al menos ${MINIMUM_ZONES_FOR_GLOBAL_SEED_CLIENT} zonas con ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos c/u y ${requiredTeamsForMinZonesToSeed} equipos en total para el seed.` :
                 (populatedGroups.length === 0) ? "Aún no hay zonas de grupos cargadas." :
                 "Iniciar el sembrado de grupos y generar partidos"
             }
@@ -497,7 +496,7 @@ export function GroupManagementClient() {
                 <Users className="h-6 w-6" />
                 {group.name}
               </CardTitle>
-              <CardDescription>Equipos asignados: {group.teams.length} / {TEAMS_PER_ZONE_CLIENT}</CardDescription>
+              <CardDescription>Equipos: {group.teams.length} / {TEAMS_PER_ZONE_CLIENT} (Mín. {MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} para seed)</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 min-h-[150px]"> 
               {group.teams.length > 0 ? (
@@ -538,10 +537,11 @@ export function GroupManagementClient() {
       <p className="text-sm text-muted-foreground italic mt-6">
         {groupsSeeded 
             ? "Los grupos están semeados y bloqueados. Para realizar cambios, primero se necesitaría 'Reiniciar Grupos', lo cual eliminará los partidos generados."
-            : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena, se intentará un intercambio. Cada zona tiene un máximo de ${TEAMS_PER_ZONE_CLIENT} equipos.`
+            : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena (max ${TEAMS_PER_ZONE_CLIENT} equipos), se intentará un intercambio. Cada zona necesita al menos ${MINIMUM_TEAMS_PER_ZONE_FOR_SEED_CLIENT} equipos para ser elegible para el 'seed'.`
         }
       </p>
       
     </div>
   );
 }
+

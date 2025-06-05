@@ -1,3 +1,4 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -6,7 +7,10 @@ import type { Group, Team, Match as MatchType, TournamentRules } from '@/types';
 import { loadTournamentRulesAction, updateGroupSeedStatusAction } from '../tournament-settings/actions';
 
 const TOTAL_ZONES = 8;
-const TEAMS_PER_ZONE = 4; 
+const TEAMS_PER_ZONE = 8; // Máximo de equipos por zona
+const MINIMUM_TEAMS_PER_ZONE_FOR_SEEDING = 4; // Mínimo de equipos para que una zona pueda ser "semeada"
+const MINIMUM_ZONES_FOR_GLOBAL_SEED = 2; // Mínimo de zonas aptas para iniciar el seed general
+
 const DEFAULT_ZONE_IDS = Array.from({ length: TOTAL_ZONES }, (_, i) => `zona-${String.fromCharCode(97 + i)}`); 
 const MATCHES_COLLECTION = "matches";
 
@@ -118,7 +122,7 @@ export async function autoAssignTeamsToGroupsAction(): Promise<{ success: boolea
 
     for (const zoneId of DEFAULT_ZONE_IDS) {
       const currentZoneAssignments = groupTeamAssignments[zoneId]; 
-      while (currentZoneAssignments.length < TEAMS_PER_ZONE && currentTeamIdx < teamsToAssign.length) {
+      while (currentZoneAssignments.length < TEAMS_PER_ZONE && currentTeamIdx < teamsToAssign.length) { // Use TEAMS_PER_ZONE (8)
         currentZoneAssignments.push(teamsToAssign[currentTeamIdx].id);
         currentTeamIdx++;
       }
@@ -260,7 +264,7 @@ export async function manualMoveTeamAction(payload: {
         throw new Error(`El equipo (ID: ${teamId}) ya existe en el grupo de destino "${targetGroupData.name}".`);
       }
 
-      const isTargetFull = newTargetTeamIds.length >= TEAMS_PER_ZONE;
+      const isTargetFull = newTargetTeamIds.length >= TEAMS_PER_ZONE; // Use TEAMS_PER_ZONE (8)
 
       if (isTargetFull) {
         let teamToMoveBackId: string | undefined = undefined;
@@ -387,19 +391,18 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
         console.log(`[Seed Action] Cleared ${clearedMatchesCount} old group stage matches from 'matches' collection.`);
     }
 
-
-    const MINIMUM_ZONES_TO_SEED = 2; 
-    const completedGroups = allGroups.filter(g => g.teamIds.length === TEAMS_PER_ZONE);
+    const groupsEligibleForSeeding = allGroups.filter(g => g.teamIds.length >= MINIMUM_TEAMS_PER_ZONE_FOR_SEEDING);
     
-    if (completedGroups.length < MINIMUM_ZONES_TO_SEED) {
-        return { success: false, message: `Se requieren al menos ${MINIMUM_ZONES_TO_SEED} zonas completas (${TEAMS_PER_ZONE} equipos c/u) para iniciar el seed. Actualmente hay ${completedGroups.length}.`};
+    if (groupsEligibleForSeeding.length < MINIMUM_ZONES_FOR_GLOBAL_SEED) {
+        return { success: false, message: `Se requieren al menos ${MINIMUM_ZONES_FOR_GLOBAL_SEED} zonas con un mínimo de ${MINIMUM_TEAMS_PER_ZONE_FOR_SEEDING} equipos cada una para iniciar el seed. Actualmente hay ${groupsEligibleForSeeding.length} zonas elegibles.`};
     }
 
-    for (const group of completedGroups) { 
-      if (group.teamIds.length !== TEAMS_PER_ZONE) {
-        console.log(`[Seed Action] Skipping group ${group.name} (ID: ${group.id}) as it does not have ${TEAMS_PER_ZONE} teams.`);
-        continue;
-      }
+    for (const group of groupsEligibleForSeeding) { 
+      // This check is already covered by the filter for groupsEligibleForSeeding
+      // if (group.teamIds.length < MINIMUM_TEAMS_PER_ZONE_FOR_SEEDING) {
+      //   console.log(`[Seed Action] Skipping group ${group.name} (ID: ${group.id}) as it does not have at least ${MINIMUM_TEAMS_PER_ZONE_FOR_SEEDING} teams.`);
+      //   continue;
+      // }
 
       const fixtures = generateRoundRobinFixtures(group.teamIds, tournamentRules.roundRobinType);
       
@@ -422,11 +425,11 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
       console.log(`[Seed Action] Generated ${fixtures.length} matches for group ${group.name}.`);
     }
 
-    if (totalMatchesGenerated === 0 && completedGroups.length > 0) {
-      return { success: false, message: "Se encontraron grupos completos, pero no se generaron partidos. Revisa la lógica de generación."};
+    if (totalMatchesGenerated === 0 && groupsEligibleForSeeding.length > 0) {
+      return { success: false, message: "Se encontraron grupos elegibles, pero no se generaron partidos. Revisa la lógica de generación."};
     }
-     if (totalMatchesGenerated === 0 && completedGroups.length === 0) {
-      return { success: false, message: "No se encontraron grupos completos para generar partidos."};
+     if (totalMatchesGenerated === 0 && groupsEligibleForSeeding.length === 0) {
+      return { success: false, message: "No se encontraron grupos elegibles para generar partidos."};
     }
 
 
