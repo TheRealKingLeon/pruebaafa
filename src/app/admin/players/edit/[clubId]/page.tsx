@@ -17,12 +17,14 @@ import { mockTeams } from '@/data/mock';
 import type { Team, Player } from '@/types';
 import { updatePlayerAction } from '../../actions';
 import { playerFormSchema, type UpdatePlayerFormInput, type PlayerFormData } from '../../schemas';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function EditPlayerPage() {
   const router = useRouter();
   const params = useParams();
   const clubId = params.clubId as string; 
+  const { toast } = useToast();
   
   const [team, setTeam] = useState<Team | null | undefined>(undefined); 
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
@@ -58,13 +60,28 @@ export default function EditPlayerPage() {
   const onSubmit: SubmitHandler<PlayerFormData> = async (formData) => {
     if (!clubId) {
         console.error("Club ID is missing");
+        toast({
+          title: "Error",
+          description: "No se pudo identificar el club para actualizar el jugador.",
+          variant: "destructive",
+        });
         return;
     }
     const dataWithClubId: UpdatePlayerFormInput = { ...formData, clubId };
     const result = await updatePlayerAction(dataWithClubId);
-    console.log(result.message);
+    
     if (result.success) {
+      toast({
+        title: "Jugador Actualizado (Simulación)",
+        description: result.message,
+      });
       router.push('/admin/players');
+    } else {
+      toast({
+        title: "Error al Actualizar (Simulación)",
+        description: result.message || "No se pudo actualizar el jugador.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -162,7 +179,7 @@ export default function EditPlayerPage() {
         </form>
       </Card>
       <p className="text-sm text-center text-muted-foreground italic mt-6">
-        Nota: Al guardar, los datos se registrarán en la consola del servidor. No se producirán cambios permanentes en los datos de ejemplo.
+        Nota: Al guardar, los datos se registrarán en la consola del servidor y se mostrará una notificación. No se producirán cambios permanentes en los datos de ejemplo.
       </p>
     </div>
   );
