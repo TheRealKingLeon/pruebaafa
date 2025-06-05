@@ -1,24 +1,82 @@
 
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { MatchResultCard } from '@/components/sections/results/MatchResultCard';
-import { mockMatches, mockGroups } from '@/data/mock';
 import type { Match, Group } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ListEnd, ListTodo, LayoutGrid, CalendarDays } from 'lucide-react';
+import { ListEnd, ListTodo, LayoutGrid, CalendarDays, Loader2, AlertTriangle } from 'lucide-react';
+import { getTournamentResultsData } from '@/app/services/tournament-service';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+
 
 export default function ResultsPage() {
-  const completedMatches = mockMatches.filter(match => match.status === 'completed');
-  const upcomingAndLiveMatches = mockMatches.filter(match => match.status === 'upcoming' || match.status === 'live');
+  const [allMatches, setAllMatches] = useState<Match[] | null>(null);
+  const [groupList, setGroupList] = useState<Pick<Group, 'id' | 'name' | 'zoneId'>[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const defaultUpcomingZoneId = mockGroups.length > 0 ? mockGroups[0].id : 'no-upcoming-zones';
-  // Adjust defaultCompletedZoneId to point to the group's tab, not a matchday tab initially
-  const defaultCompletedZoneIdForGroupSelection = mockGroups.length > 0 ? `${mockGroups[0].id}-completed` : 'no-completed-zones';
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await getTournamentResultsData();
+      if (result.error) {
+        setError(result.error);
+        toast({ title: "Error al Cargar Resultados", description: result.error, variant: "destructive" });
+        setAllMatches([]);
+        setGroupList([]);
+      } else {
+        setAllMatches(result.allMatches);
+        setGroupList(result.groupList);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido.";
+      setError(msg);
+      toast({ title: "Error Inesperado", description: msg, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+        <p className="text-xl text-muted-foreground">Cargando resultados desde Firestore...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+     return (
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <p className="text-xl text-destructive font-semibold">Error al Cargar Resultados</p>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={fetchData}>Reintentar</Button>
+      </div>
+    );
+  }
+  
+  const completedMatches = allMatches?.filter(match => match.status === 'completed') || [];
+  const upcomingAndLiveMatches = allMatches?.filter(match => match.status === 'upcoming' || match.status === 'live' || match.status === 'pending_date') || [];
+  
+  const defaultUpcomingZoneId = groupList && groupList.length > 0 ? groupList[0].id : 'no-upcoming-zones';
+  const defaultCompletedZoneIdForGroupSelection = groupList && groupList.length > 0 ? `${groupList[0].id}-completed` : 'no-completed-zones';
 
   return (
     <div className="space-y-8">
       <SectionTitle>Resultados y Próximos Partidos</SectionTitle>
       <p className="mb-6 text-muted-foreground">
-        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha.
+        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona y fecha. Los datos se cargan desde Firestore.
       </p>
 
       <Tabs defaultValue="upcoming" className="w-full">
@@ -39,25 +97,25 @@ export default function ResultsPage() {
                   <LayoutGrid className="mr-2 h-5 w-5" />
                   Selecciona una Zona
                 </h3>
-                {mockGroups.length > 0 ? (
+                {groupList && groupList.length > 0 ? (
                   <Tabs defaultValue={defaultCompletedZoneIdForGroupSelection} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-                      {mockGroups.map((group: Group) => (
+                      {groupList.map((group) => (
                         <TabsTrigger key={`${group.id}-completed-group-trigger`} value={`${group.id}-completed`} className="text-xs sm:text-sm py-2">
                           {group.name}
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    {mockGroups.map((group: Group) => {
+                    {groupList.map((group) => {
                       const zoneCompletedMatches = completedMatches.filter(
-                        (match) => match.groupName === group.name
+                        (match) => match.groupId === group.id || match.groupName === group.name // Match by ID or name for flexibility
                       );
 
                       const uniqueMatchdays = Array.from(new Set(zoneCompletedMatches.map(m => m.matchday).filter(Boolean) as number[])).sort((a, b) => a - b);
                       const defaultMatchdayTab = `all-matchdays-${group.id}-completed`;
 
                       return (
-                        <TabsContent key={`${group.id}-completed-content`} value={`${group.id}-completed`} className="mt-0"> {/* Removed mt-6 here for better nesting */}
+                        <TabsContent key={`${group.id}-completed-content`} value={`${group.id}-completed`} className="mt-0">
                           {zoneCompletedMatches.length > 0 ? (
                             <>
                               <h4 className="text-lg font-semibold mb-3 flex items-center text-muted-foreground">
@@ -131,21 +189,21 @@ export default function ResultsPage() {
                   <LayoutGrid className="mr-2 h-5 w-5" />
                   Selecciona una Zona
                 </h3>
-                {mockGroups.length > 0 ? (
+                {groupList && groupList.length > 0 ? (
                   <Tabs defaultValue={defaultUpcomingZoneId} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-                      {mockGroups.map((group: Group) => (
+                      {groupList.map((group) => (
                         <TabsTrigger key={`${group.id}-upcoming-trigger`} value={group.id} className="text-xs sm:text-sm py-2">
                           {group.name}
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    {mockGroups.map((group: Group) => {
+                    {groupList.map((group) => {
                       const zoneMatches = upcomingAndLiveMatches.filter(
-                        (match) => match.groupName === group.name
+                        (match) => match.groupId === group.id || match.groupName === group.name
                       );
                       return (
-                        <TabsContent key={`${group.id}-upcoming-content`} value={group.id} className="mt-0"> {/* Removed mt-6 for better nesting */}
+                        <TabsContent key={`${group.id}-upcoming-content`} value={group.id} className="mt-0">
                           {zoneMatches.length > 0 ? (
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                               {zoneMatches.map((match: Match) => (
@@ -174,3 +232,5 @@ export default function ResultsPage() {
     </div>
   );
 }
+
+    
