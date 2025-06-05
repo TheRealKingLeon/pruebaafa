@@ -1,22 +1,26 @@
+
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { MatchResultCard } from '@/components/sections/results/MatchResultCard';
-import { mockMatches } from '@/data/mock';
-import type { Match } from '@/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ListEnd, ListTodo } from 'lucide-react';
+import { mockMatches, mockGroups } from '@/data/mock'; // Importar mockGroups
+import type { Match, Group } from '@/types'; // Importar Group
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ListEnd, ListTodo, LayoutGrid } from 'lucide-react';
 
 export default function ResultsPage() {
   const completedMatches = mockMatches.filter(match => match.status === 'completed');
-  const upcomingMatches = mockMatches.filter(match => match.status === 'upcoming' || match.status === 'live');
+  const upcomingAndLiveMatches = mockMatches.filter(match => match.status === 'upcoming' || match.status === 'live');
+
+  // Asegurar que mockGroups exista y tenga al menos un elemento antes de usarlo para defaultValue
+  const defaultZoneId = mockGroups.length > 0 ? mockGroups[0].id : 'no-zones';
 
   return (
     <div className="space-y-8">
       <SectionTitle>Resultados y Próximos Partidos</SectionTitle>
       <p className="mb-6 text-muted-foreground">
-        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos.
+        Sigue todos los resultados de los partidos jugados y mantente al tanto de los próximos enfrentamientos, filtrados por zona.
       </p>
 
-      <Tabs defaultValue="completed" className="w-full">
+      <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto">
           <TabsTrigger value="completed">
             <ListEnd className="mr-2 h-5 w-5" /> Partidos Finalizados
@@ -39,12 +43,48 @@ export default function ResultsPage() {
         </TabsContent>
 
         <TabsContent value="upcoming" className="mt-6">
-           {upcomingMatches.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingMatches.map((match: Match) => (
-                <MatchResultCard key={match.id} match={match} />
-              ))}
-            </div>
+          {upcomingAndLiveMatches.length > 0 ? (
+            <>
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
+                  <LayoutGrid className="mr-2 h-5 w-5" />
+                  Selecciona una Zona
+                </h3>
+                {mockGroups.length > 0 ? (
+                  <Tabs defaultValue={defaultZoneId} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                      {mockGroups.map((group: Group) => (
+                        <TabsTrigger key={group.id} value={group.id} className="text-xs sm:text-sm py-2">
+                          {group.name} {/* Esto es "Zona A", "Zona B", etc. */}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {mockGroups.map((group: Group) => {
+                      const zoneMatches = upcomingAndLiveMatches.filter(
+                        (match) => match.groupName === group.name 
+                      );
+                      return (
+                        <TabsContent key={group.id} value={group.id} className="mt-6">
+                          {zoneMatches.length > 0 ? (
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {zoneMatches.map((match: Match) => (
+                                <MatchResultCard key={match.id} match={match} />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-center text-muted-foreground py-10">
+                              No hay próximos partidos programados para {group.name}.
+                            </p>
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                ) : (
+                  <p className="text-center text-muted-foreground py-10">No hay zonas definidas para filtrar.</p>
+                )}
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground py-10">No hay próximos partidos programados.</p>
           )}
