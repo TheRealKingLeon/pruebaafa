@@ -9,8 +9,15 @@ import { z } from 'zod';
 
 // Helper function to check for duplicate club name (case-insensitive)
 async function isClubNameDuplicate(name: string, excludeClubId?: string): Promise<boolean> {
+  // Re-import db here as a test for Turbopack resolution issues
+  const { db: localDb } = await import('@/lib/firebase');
+  if (!localDb) {
+    console.error("[isClubNameDuplicate] Firestore db instance is not available.");
+    // Optionally throw an error or return true to prevent operations
+    throw new Error("Database not initialized in isClubNameDuplicate.");
+  }
   const normalizedName = name.trim().toLowerCase();
-  const equiposRef = collection(db, "equipos");
+  const equiposRef = collection(localDb, "equipos");
   const querySnapshot = await getDocs(equiposRef);
   
   for (const document of querySnapshot.docs) {
@@ -219,12 +226,14 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       const validationResult = addClubSchema.safeParse(clubData);
       if (!validationResult.success) {
         errorCount++;
+        const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'field'}: ${e.message}`).join('; ');
         details.push({
           lineNumber,
           clubName: clubData.name || 'Nombre no proporcionado',
           status: 'error',
-          reason: `Datos inválidos: ${validationResult.error.errors.map(e => e.message).join(', ')}`,
+          reason: `Datos inválidos: ${errorMessages}`,
         });
+        console.warn(`[Server Action] CSV Import Validation Error line ${lineNumber} (${clubData.name || 'N/A'}): ${errorMessages}`);
         continue; 
       }
       
@@ -255,17 +264,21 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       });
     } catch (error) {
       errorCount++;
-      let errorMessage = "Error desconocido al procesar el club en Firestore.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
+      let specificErrorReason = "Error desconocido durante el procesamiento en servidor.";
+      if (error instanceof TypeError && error.message.includes("is not a function")) {
+          specificErrorReason = `Error de Configuración del Servidor: ${error.message}. Revisa el empaquetador (Turbopack) y dependencias.`;
+      } else if (error instanceof Error) {
+          specificErrorReason = error.message;
+      } else {
+          specificErrorReason = String(error);
       }
       details.push({
         lineNumber,
-        clubName: validatedDataIfSuccessful?.name || clubData.name || 'Nombre no disponible', 
+        clubName: clubData.name || 'Nombre no disponible', 
         status: 'error',
-        reason: errorMessage,
+        reason: specificErrorReason,
       });
-      console.error(`[Server Action] Error processing club "${validatedDataIfSuccessful?.name || clubData.name}" from CSV:`, error);
+      console.error(`[Server Action] Error processing club "${clubData.name || 'N/A'}" (Line ${lineNumber}) from CSV:`, error);
     }
   }
 
@@ -276,9 +289,9 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
 
   if (errorCount > 0) {
     if (importedCount > 0 || skippedCount > 0) {
-        message = `${importedCount} clubes importados, ${skippedCount} omitidos. Hubo ${errorCount} errores durante el proceso.`;
+        message = `${importedCount} clubes importados, ${skippedCount} omitidos. Hubo ${errorCount} errores durante el proceso. Revisa los detalles.`;
     } else {
-        message = `Proceso finalizado con ${errorCount} errores. Ningún club importado.`;
+        message = `Proceso finalizado con ${errorCount} errores. Ningún club importado. Revisa los detalles y la consola del servidor.`;
     }
   }
 
@@ -336,3 +349,5 @@ export async function deleteAllClubsAction(): Promise<{ success: boolean; messag
     };
   }
 }
+
+    
