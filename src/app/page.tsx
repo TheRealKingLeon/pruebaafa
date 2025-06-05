@@ -95,7 +95,7 @@ export default function HomePage() {
     <div className="space-y-16 pt-8">
 
       {upcomingLiveMatches.length > 0 && (
-        <section className="mb-12">
+        <section className="mt-8 mb-12">
           <SectionTitle>PRÓXIMOS ENCUENTROS</SectionTitle>
           <Carousel
             opts={{
