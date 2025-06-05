@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, getFirebaseDebugInfo } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Team } from '@/types';
 import type { AddClubFormInput, EditClubFormInput } from './schemas';
@@ -9,13 +9,18 @@ import type { AddClubFormInput, EditClubFormInput } from './schemas';
 // Add Club Action
 export async function addClubAction(data: AddClubFormInput) {
   console.log("[Server Action] addClubAction called with data:", JSON.stringify(data));
-  try {
-    // Basic check for Firestore instance (heuristic)
-    if (!db || typeof db.INTERNAL === 'undefined') { 
-      console.error("[Server Action] Firestore db instance is not properly initialized.");
-      return { success: false, message: "Error de configuración: la base de datos no está inicializada." };
-    }
+  
+  const debugInfo = getFirebaseDebugInfo();
 
+  if (!debugInfo.isDbInitialized || !db) {
+    console.error("[Server Action] Firestore db instance is not properly initialized. Debug info:", JSON.stringify(debugInfo, null, 2));
+    return { 
+      success: false, 
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+    };
+  }
+
+  try {
     const clubData = {
       ...data,
       createdAt: serverTimestamp(),
@@ -33,15 +38,14 @@ export async function addClubAction(data: AddClubFormInput) {
     return { success: true, message: `Club "${data.name}" añadido con ID: ${docRef.id}.`, club: newClub };
   } catch (error) {
     console.error("[Server Action] Error añadiendo club a Firestore: ", error);
-    let errorMessage = "Ocurrió un error desconocido.";
+    let errorMessage = "Ocurrió un error desconocido al añadir el club.";
     if (error instanceof Error) {
       errorMessage = error.message;
-      if ('code' in error) { // Check if it's a FirebaseError or similar
+      if ('code' in error) { 
         console.error("[Server Action] Firebase error code:", (error as any).code);
-        // Potentially customize errorMessage based on (error as any).code
       }
     }
-    return { success: false, message: `Error al añadir el club: ${errorMessage}` };
+    return { success: false, message: `Error al añadir el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
   }
 }
 
@@ -53,9 +57,17 @@ export async function updateClubAction(data: EditClubFormInput) {
     return { success: false, message: "ID del club no proporcionado." };
   }
 
+  const debugInfo = getFirebaseDebugInfo();
+  if (!debugInfo.isDbInitialized || !db) {
+    console.error("[Server Action] Firestore db instance is not properly initialized for update. Debug info:", JSON.stringify(debugInfo, null, 2));
+    return { 
+      success: false, 
+      message: `Error de configuración (update): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+    };
+  }
+
   try {
     const clubRef = doc(db, "equipos", clubId);
-    // Prepare data for Firestore update, excluding the id field itself
     const { id, ...updateDataWithoutId } = data;
     const updatePayload = {
       ...updateDataWithoutId,
@@ -67,14 +79,14 @@ export async function updateClubAction(data: EditClubFormInput) {
     return { success: true, message: `Club "${data.name}" (ID: ${clubId}) actualizado.` };
   } catch (error) {
     console.error("[Server Action] Error actualizando club en Firestore: ", error);
-    let errorMessage = "Ocurrió un error desconocido.";
+    let errorMessage = "Ocurrió un error desconocido al actualizar el club.";
     if (error instanceof Error) {
       errorMessage = error.message;
       if ('code' in error) {
         console.error("[Server Action] Firebase error code:", (error as any).code);
       }
     }
-    return { success: false, message: `Error al actualizar el club: ${errorMessage}` };
+    return { success: false, message: `Error al actualizar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
   }
 }
 
@@ -84,6 +96,16 @@ export async function deleteClubAction(clubId: string) {
   if (!clubId) {
     return { success: false, message: "ID del club no proporcionado para eliminar." };
   }
+
+  const debugInfo = getFirebaseDebugInfo();
+  if (!debugInfo.isDbInitialized || !db) {
+    console.error("[Server Action] Firestore db instance is not properly initialized for delete. Debug info:", JSON.stringify(debugInfo, null, 2));
+    return { 
+      success: false, 
+      message: `Error de configuración (delete): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+    };
+  }
+
   try {
     const clubRef = doc(db, "equipos", clubId);
     const clubSnap = await getDoc(clubRef);
@@ -99,13 +121,13 @@ export async function deleteClubAction(clubId: string) {
     return { success: true, message: `Club con ID ${clubId} eliminado.` };
   } catch (error) {
     console.error("[Server Action] Error eliminando club de Firestore: ", error);
-    let errorMessage = "Ocurrió un error desconocido.";
+    let errorMessage = "Ocurrió un error desconocido al eliminar el club.";
     if (error instanceof Error) {
       errorMessage = error.message;
       if ('code' in error) {
         console.error("[Server Action] Firebase error code:", (error as any).code);
       }
     }
-    return { success: false, message: `Error al eliminar el club: ${errorMessage}` };
+    return { success: false, message: `Error al eliminar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
   }
 }
