@@ -66,12 +66,6 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
                   <p className="text-sm text-foreground/80">{player.favoriteFormation}</p>
                 </div>
               )}
-               <div>
-                <h3 className="flex items-center gap-2 text-md font-semibold text-muted-foreground mb-1">
-                  <Gamepad className="h-4 w-4" /> Plataforma
-                </h3>
-                <p className="text-sm text-foreground/80">Consolas (FC 25)</p>
-              </div>
             </div>
           </div>
 
@@ -92,3 +86,4 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
     </Card>
   );
 }
+
