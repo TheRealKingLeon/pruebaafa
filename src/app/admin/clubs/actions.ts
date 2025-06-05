@@ -210,15 +210,10 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
   let errorCount = 0;
   const details: ImportClubResultDetail[] = [];
 
-  // Firestore allows a maximum of 500 writes in a single batch.
-  // Process in chunks if necessary, though for typical CSVs, this might be fine.
-  // For extreme simplicity here, not batching writes yet. Could be a future enhancement.
-
   for (let i = 0; i < clubsToImport.length; i++) {
     const clubData = clubsToImport[i];
     const lineNumber = i + 1;
 
-    // Validate using Zod schema for individual club data
     const validationResult = addClubSchema.safeParse(clubData);
     if (!validationResult.success) {
       errorCount++;
@@ -292,3 +287,48 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
     details,
   };
 }
+
+// Delete All Clubs Action
+export async function deleteAllClubsAction(): Promise<{ success: boolean; message: string; deletedCount?: number }> {
+  console.log("[Server Action] deleteAllClubsAction called.");
+
+  const debugInfo = getFirebaseDebugInfo();
+  if (!debugInfo.isDbInitialized || !db) {
+    console.error("[Server Action] Firestore db instance is not properly initialized for deleteAllClubs. Debug info:", JSON.stringify(debugInfo, null, 2));
+    return {
+      success: false,
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+    };
+  }
+
+  try {
+    const equiposRef = collection(db, "equipos");
+    const querySnapshot = await getDocs(equiposRef);
+    
+    if (querySnapshot.empty) {
+      return { success: true, message: "No hay clubes para eliminar.", deletedCount: 0 };
+    }
+
+    const batch = writeBatch(db);
+    querySnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    const deletedCount = querySnapshot.size;
+    console.log(`[Server Action] Todos los ${deletedCount} clubes han sido eliminados de Firestore.`);
+    return { success: true, message: `Todos los ${deletedCount} clubes han sido eliminados.`, deletedCount };
+  } catch (error) {
+    console.error("[Server Action] Error eliminando todos los clubes de Firestore: ", error);
+    let errorMessage = "Ocurrió un error desconocido al eliminar todos los clubes.";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return { 
+        success: false, 
+        message: `Error al eliminar todos los clubes: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+    };
+  }
+}
+
+    

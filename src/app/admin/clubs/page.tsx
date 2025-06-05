@@ -8,11 +8,11 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle, UserCog, UploadCloud } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Info, AlertTriangle, UserCog, UploadCloud, Trash } from 'lucide-react';
 import type { Team } from '@/types'; 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { deleteClubAction } from './actions';
+import { deleteClubAction, deleteAllClubsAction } from './actions'; // Added deleteAllClubsAction
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ImportClubsDialog } from '@/components/admin/clubs/ImportClubsDialog'; // Import the new dialog
+import { ImportClubsDialog } from '@/components/admin/clubs/ImportClubsDialog';
 
 interface ClubDocument extends Omit<Team, 'player' | 'id'> { 
   id: string;
@@ -39,6 +39,7 @@ export default function ManageClubsPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const fetchClubs = useCallback(async () => {
     setIsLoading(true);
@@ -85,10 +86,29 @@ export default function ManageClubsPage() {
       });
     }
   };
+
+  const handleDeleteAllClubs = async () => {
+    setIsDeletingAll(true);
+    const result = await deleteAllClubsAction();
+    if (result.success) {
+      toast({
+        title: "Todos los Clubes Eliminados",
+        description: result.message,
+      });
+      setClubs([]); // Clear local state
+    } else {
+      toast({
+        title: "Error al Eliminar Todos los Clubes",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+    setIsDeletingAll(false);
+  };
   
   const handleImportSuccess = () => {
-    fetchClubs(); // Re-fetch clubs after successful import
-    setIsImportModalOpen(false); // Close the modal
+    fetchClubs(); 
+    setIsImportModalOpen(false); 
   };
 
   if (isLoading) {
@@ -116,7 +136,7 @@ export default function ManageClubsPage() {
        <div className="space-y-8">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <SectionTitle>Gestionar Clubes</SectionTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={() => setIsImportModalOpen(true)} variant="outline">
               <UploadCloud className="mr-2 h-5 w-5" /> Importar desde CSV
             </Button>
@@ -125,6 +145,29 @@ export default function ManageClubsPage() {
                 <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
               </Link>
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                 <Button variant="destructive" disabled={!clubs || clubs.length === 0 || isDeletingAll}>
+                  <Trash className="mr-2 h-5 w-5" /> 
+                  {isDeletingAll ? "Limpiando..." : "Limpiar Todos"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Seguro que quieres eliminar TODOS los clubes?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción es irreversible y eliminará todos los clubes de la base de datos.
+                    Esto podría afectar otras partes del sistema si los clubes están referenciados (jugadores, grupos, etc.).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAllClubs} disabled={isDeletingAll}>
+                    Sí, eliminar todos
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         <Card className="shadow-lg">
@@ -153,7 +196,7 @@ export default function ManageClubsPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <SectionTitle>Gestionar Clubes</SectionTitle>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
             <Button onClick={() => setIsImportModalOpen(true)} variant="outline">
               <UploadCloud className="mr-2 h-5 w-5" /> Importar desde CSV
             </Button>
@@ -162,6 +205,29 @@ export default function ManageClubsPage() {
                 <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Club
               </Link>
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isDeletingAll}>
+                  <Trash className="mr-2 h-5 w-5" /> 
+                  {isDeletingAll ? "Limpiando..." : "Limpiar Todos"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Seguro que quieres eliminar TODOS los clubes?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción es irreversible y eliminará todos los clubes de la base de datos.
+                    Esto podría afectar otras partes del sistema si los clubes están referenciados (jugadores, grupos, etc.).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAllClubs} disabled={isDeletingAll}>
+                    Sí, eliminar todos
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
         </div>
       </div>
 
@@ -249,3 +315,5 @@ export default function ManageClubsPage() {
     </div>
   );
 }
+
+    
