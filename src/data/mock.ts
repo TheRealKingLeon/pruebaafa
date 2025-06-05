@@ -5,7 +5,7 @@ const generatePlayer = (id: string, name: string, clubId: string): Player => ({
   id: `player-${id}`,
   name: name,
   gamerTag: `Gamer${id.replace('club-','')}`,
-  imageUrl: `https://placehold.co/300x300.png`,
+  imageUrl: `https://static.lvp.global/players/photos/67a3837738fec333664517.x2.png`,
   bio: `Jugador estrella de ${name}, especialista en FC 25 con una trayectoria impresionante en torneos locales e internacionales. Conocido por su estilo de juego agresivo y su capacidad para marcar goles en momentos cruciales.`,
   clubId: clubId,
 });
@@ -69,10 +69,10 @@ const generateMockStandings = (teamsInGroup: Team[], gamesPlayed: number): Stand
 const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 export const mockGroups: Group[] = groupLetters.map((letter, index) => {
   const teamsForGroup = mockTeams.slice(index * 8, (index + 1) * 8);
-  const gamesPlayed = Math.floor(Math.random() * 5) + 3;
+  const gamesPlayed = Math.floor(Math.random() * 5) + 3; // Teams play between 3 and 7 games
   return {
     id: `group-${letter.toLowerCase()}`,
-    name: `Zona ${letter}`,
+    name: `Zona ${letter}`, // Changed from "Grupo" to "Zona"
     teams: teamsForGroup,
     standings: generateMockStandings(teamsForGroup, gamesPlayed),
   };
@@ -113,30 +113,31 @@ const generateMatch = (
 };
 
 export const mockMatches: Match[] = [];
-const numCarouselMatches = 10;
+const numCarouselMatches = 10; // Define how many matches for the carousel
 for (let i = 0; i < numCarouselMatches; i++) {
-    const groupIndex = i % mockGroups.length;
+    const groupIndex = i % mockGroups.length; // Cycle through groups
     const team1Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     let team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
-    while (team2Index === team1Index) {
+    while (team2Index === team1Index) { // Ensure different teams
         team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
     }
-    const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming';
-    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3);
+    const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming'; // 40% live, 60% upcoming
+    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); // Live matches today, upcoming within 3 days
 
     mockMatches.push(
         generateMatch(
-            (i + 1).toString(),
+            (i + 1).toString(), // Match ID
             mockGroups[groupIndex].teams[team1Index],
             mockGroups[groupIndex].teams[team2Index],
             mockGroups[groupIndex].name,
             matchStatus,
             dateOffset,
-            Math.floor(Math.random() * 7) + 1
+            Math.floor(Math.random() * 7) + 1 // Random matchday between 1 and 7
         )
     );
 }
 
+// Add more completed matches for the results page
 mockMatches.push(
   generateMatch('c1', mockTeams[0], mockTeams[1], mockGroups[0].name, 'completed', -2, 1),
   generateMatch('c2', mockTeams[2], mockTeams[3], mockGroups[0].name, 'completed', -1, 1),
@@ -147,7 +148,15 @@ mockMatches.push(
   generateMatch('c7', mockTeams[12], mockTeams[13], mockGroups[1].name, 'completed', -4, 2), // Zona B, Fecha 2
   generateMatch('c8', mockTeams[16], mockTeams[17], mockGroups[2].name, 'completed', -5, 1), // Zona C, Fecha 1
   generateMatch('c9', mockTeams[18], mockTeams[19], mockGroups[2].name, 'completed', -5, 2), // Zona C, Fecha 2
-  generateMatch('c10', mockTeams[20], mockTeams[21], mockGroups[2].name, 'completed', -5, 3) // Zona C, Fecha 3
+  generateMatch('c10', mockTeams[20], mockTeams[21], mockGroups[2].name, 'completed', -5, 3), // Zona C, Fecha 3
+  generateMatch('c11', mockTeams[0], mockTeams[4], mockGroups[0].name, 'completed', -4, 3), // Zona A, Fecha 3
+  generateMatch('c12', mockTeams[1], mockTeams[5], mockGroups[0].name, 'completed', -4, 3), // Zona A, Fecha 3
+  generateMatch('c13', mockTeams[2], mockTeams[6], mockGroups[0].name, 'completed', -5, 4), // Zona A, Fecha 4
+  generateMatch('c14', mockTeams[3], mockTeams[7], mockGroups[0].name, 'completed', -5, 4), // Zona A, Fecha 4
+  generateMatch('c15', mockTeams[8], mockTeams[12], mockGroups[1].name, 'completed', -6, 3), // Zona B, Fecha 3
+  generateMatch('c16', mockTeams[9], mockTeams[13], mockGroups[1].name, 'completed', -6, 3), // Zona B, Fecha 3
+  generateMatch('c17', mockTeams[24], mockTeams[25], mockGroups[3].name, 'completed', -2, 1), // Zona D, Fecha 1
+  generateMatch('c18', mockTeams[26], mockTeams[27], mockGroups[3].name, 'completed', -3, 2)  // Zona D, Fecha 2
 );
 
 
@@ -166,12 +175,14 @@ export const mockPlayoffRounds: PlayoffRound[] = [
     id: 'semifinals',
     name: 'Semifinales',
     matches: [
+      // Example: generateMatch('sf1', TBD_Team1, TBD_Team2, '', 'upcoming', 10, 'Semifinals'),
     ],
   },
   {
     id: 'final',
     name: 'Final',
     matches: [
+      // Example: generateMatch('f1', TBD_Team1, TBD_Team2, '', 'upcoming', 15, 'Final'),
     ],
   },
 ];
