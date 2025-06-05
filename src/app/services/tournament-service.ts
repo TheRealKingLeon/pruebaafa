@@ -278,7 +278,7 @@ export async function getTournamentHomePageData(): Promise<{
     const liveQuery = query(
       collection(db, "matches"),
       where("status", "==", "live"),
-      orderBy("date", "asc"),
+      // orderBy("date", "asc"), // Removed to avoid needing a composite index; will sort client-side
       limit(5)
     );
 
@@ -292,6 +292,16 @@ export async function getTournamentHomePageData(): Promise<{
 
     const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+
+    // Sort rawLiveMatches by date here, since orderBy was removed from the query
+    rawLiveMatches.sort((a, b) => {
+      if (a.date && b.date) {
+        return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+      }
+      if (a.date) return -1; // a has date, b doesn't, a comes first
+      if (b.date) return 1;  // b has date, a doesn't, b comes first
+      return 0; // both are null or undefined
+    });
 
     const combinedRawMatchesMap = new Map<string, ReturnType<typeof convertMatchTimestamps>>();
     rawLiveMatches.forEach(m => combinedRawMatchesMap.set(m.id, m));
@@ -386,4 +396,3 @@ export async function getTournamentResultsData(): Promise<{
     return { allMatches: [], groupList: [], error: message };
   }
 }
-
