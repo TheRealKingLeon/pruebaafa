@@ -3,15 +3,14 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Shield, Users, Settings, LayoutGrid, Trophy } from 'lucide-react'; // Added LayoutGrid, Trophy
+import { Shield, Users, Settings, GanttChartSquare } from 'lucide-react'; // Changed icons
 
 export default function AdminDashboardPage() {
   const managementSections = [
     { title: 'Gestionar Clubes', href: '/admin/clubs', icon: Shield, description: 'Añadir, editar o eliminar clubes participantes.' },
     { title: 'Gestionar Jugadores', href: '/admin/players', icon: Users, description: 'Administrar los perfiles de los jugadores.' },
-    { title: 'Gestionar Fase de Grupos', href: '/admin/groups', icon: LayoutGrid, description: 'Configurar las zonas y asignar equipos.' },
+    { title: 'Gestionar Fases del Torneo', href: '/admin/tournament-phases', icon: GanttChartSquare, description: 'Configurar Fase de Grupos y Playoffs.' },
     { title: 'Gestionar Partidos (Resultados)', href: '/admin/matches', icon: Settings, description: 'Programar enfrentamientos y actualizar resultados (actualmente mock).' },
-    { title: 'Gestionar Playoffs', href: '/admin/playoffs', icon: Trophy, description: 'Generar y visualizar las llaves de Playoffs.' },
   ];
 
   return (
