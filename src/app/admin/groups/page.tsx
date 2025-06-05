@@ -182,6 +182,9 @@ export default function ManageGroupsPage() {
                                   ? hoveredTeamAsDropTarget.teamId
                                   : undefined;
 
+    let optimisticErrorCondition: { title: string, description: string, variant: "destructive" } | null = null;
+    let operationType: 'move' | 'swap' | 'none' = 'none';
+
     setPopulatedGroups(prevGroups => {
       const newGroups = prevGroups.map(g => ({
           ...g,
@@ -193,6 +196,7 @@ export default function ManageGroupsPage() {
       
       if (sourceGroupIndex === -1 || targetGroupIndex === -1) {
           console.error("Optimistic update failed: source or target group not found.");
+          // This case should ideally not happen if data is consistent
           return prevGroups;
       }
 
@@ -200,7 +204,7 @@ export default function ManageGroupsPage() {
       const targetGroup = newGroups[targetGroupIndex];
 
       if (targetGroup.teams.find(t => t.id === teamId)) {
-         toast({ title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" });
+         optimisticErrorCondition = { title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" };
          return prevGroups;
       }
 
@@ -211,13 +215,12 @@ export default function ManageGroupsPage() {
         if (specificTeamToSwapId) {
             teamToSwapOutClient = targetGroup.teams.find(t => t.id === specificTeamToSwapId);
         }
-        // Fallback if specificTeamToSwapId is invalid or not set, and target is full
-        if (!teamToSwapOutClient && targetGroup.teams.length > 0) {
+        if (!teamToSwapOutClient && targetGroup.teams.length > 0) { // Fallback
             teamToSwapOutClient = targetGroup.teams[0]; 
         }
 
         if (!teamToSwapOutClient) {
-          toast({ title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" });
+          optimisticErrorCondition = { title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" };
           return prevGroups;
         }
 
@@ -227,28 +230,34 @@ export default function ManageGroupsPage() {
         }
         targetGroup.teams = targetGroup.teams.filter(t => t.id !== teamToSwapOutClient!.id);
         targetGroup.teams.push(teamToMove);
-        
-        toast({ title: "Intercambio Realizado", description: `"${teamToMove.name}" movido a ${targetGroup.name} e "${teamToSwapOutClient!.name}" movido a ${sourceGroup.name}.`});
+        operationType = 'swap';
       } else {
         sourceGroup.teams = sourceGroup.teams.filter(t => t.id !== teamToMove.id);
         targetGroup.teams.push(teamToMove);
+        operationType = 'move';
       }
       return newGroups;
     });
     
+    if (optimisticErrorCondition) {
+        toast(optimisticErrorCondition);
+        setDraggedTeam(null); 
+        setSourceGroupIdForDrag(null);
+        setHoveredTeamAsDropTarget(null);
+        return; // Abort if client-side validation failed
+    }
+
     setDraggedTeam(null); 
     setSourceGroupIdForDrag(null);
     setHoveredTeamAsDropTarget(null);
 
     const result = await manualMoveTeamAction({ teamId, sourceGroupId: currentSourceGroupId, targetGroupId, specificTeamToSwapId });
     if (result.success) {
-      if (!targetIsFull) { // Only toast simple move if not swap (swap has its own optimistic toast)
-         toast({ title: "Movimiento Exitoso", description: result.message });
-      }
+      toast({ title: "Acción Completada", description: result.message });
       await fetchData(); 
     } else {
       toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
-      await fetchData(); 
+      await fetchData(); // Refetch to revert optimistic update on error
     }
   };
 
