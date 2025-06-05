@@ -1,56 +1,87 @@
-import type { Team, Group, Match, PlayoffRound, Player } from '@/types';
+
+import type { Team, Group, Match, PlayoffRound, Player, StandingEntry } from '@/types';
 
 const generatePlayer = (id: string, name: string, clubId: string): Player => ({
   id: `player-${id}`,
   name: name,
-  gamerTag: `Gamer${id}`,
+  gamerTag: `Gamer${id.replace('club-','')}`,
   imageUrl: `https://placehold.co/300x300.png`,
   bio: `Jugador estrella de ${name}, especialista en FC 25 con una trayectoria impresionante en torneos locales e internacionales. Conocido por su estilo de juego agresivo y su capacidad para marcar goles en momentos cruciales.`,
   clubId: clubId,
 });
 
-const clubs = [
-  { id: 'river', name: 'River Plate', logo: 'football club' },
-  { id: 'boca', name: 'Boca Juniors', logo: 'football club' },
-  { id: 'independiente', name: 'Independiente', logo: 'football club' },
-  { id: 'racing', name: 'Racing Club', logo: 'football club' },
-  { id: 'sanlorenzo', name: 'San Lorenzo', logo: 'football club' },
-  { id: 'velez', name: 'Vélez Sarsfield', logo: 'football team' },
-  { id: 'estudiantes', name: 'Estudiantes LP', logo: 'football team' },
-  { id: 'lanus', name: 'Lanús', logo: 'football team' },
-  { id: 'huracan', name: 'Huracán', logo: 'football team' },
-  { id: 'gimnasia', name: 'Gimnasia LP', logo: 'football team' },
-  { id: 'rosariocentral', name: 'Rosario Central', logo: 'football team' },
-  { id: 'newells', name: "Newell's Old Boys", logo: 'football team' },
+const clubNames = [
+  'River Plate', 'Boca Juniors', 'Independiente', 'Racing Club', 'San Lorenzo', 'Vélez Sarsfield', 'Estudiantes LP', 'Lanús',
+  'Huracán', 'Gimnasia LP', 'Rosario Central', "Newell's Old Boys", 'Argentinos Jrs.', 'Banfield', 'Colón', 'Unión',
+  'Talleres', 'Belgrano', 'Instituto', 'Godoy Cruz', 'Defensa y Justicia', 'Tigre', 'Platense', 'Sarmiento',
+  'Atlético Tucumán', 'Central Córdoba', 'Barracas Central', 'Arsenal de Sarandí', 'Quilmes', 'Chacarita Juniors', 'Ferro Carril Oeste', 'Atlanta',
+  'Aldosivi', 'Almirante Brown', 'Temperley', 'Brown de Adrogué', 'All Boys', 'Nueva Chicago', 'Deportivo Morón', 'San Martín (T)',
+  'Gimnasia (Mendoza)', 'Estudiantes (RC)', 'Agropecuario', 'San Telmo', 'Flandria', 'Comunicaciones', 'Sacachispas', 'Dock Sud',
+  'Excursionistas', 'Laferrere', 'Midland', 'Liniers', 'Ituzaingó', 'Argentino de Quilmes', 'Colegiales', 'UAI Urquiza',
+  'Villa Dálmine', 'Defensores de Belgrano', 'Tristán Suárez', 'San Miguel', 'Los Andes', 'Acassuso', 'Argentino de Merlo', 'Fénix'
 ];
 
-export const mockTeams: Team[] = clubs.map((club, index) => {
-  const player = generatePlayer((index + 1).toString(), club.name, club.id);
+
+export const mockTeams: Team[] = clubNames.map((name, index) => {
+  const clubId = `club-${index + 1}`;
+  const player = generatePlayer(clubId, name, clubId);
+  // Simple logic for data-ai-hint for prominent clubs
+  const hintKeywords = name.toLowerCase().includes("river") || name.toLowerCase().includes("boca") || name.toLowerCase().includes("independiente") || name.toLowerCase().includes("racing") || name.toLowerCase().includes("san lorenzo") ? "football club" : "team logo";
   return {
-    id: club.id,
-    name: club.name,
-    logoUrl: `https://placehold.co/100x100.png`,
+    id: clubId,
+    name: name,
+    logoUrl: `https://placehold.co/64x64.png`, // smaller logo for table
     player: player,
   };
 });
 
-export const mockGroups: Group[] = [
-  {
-    id: 'group-a',
-    name: 'Grupo A',
-    teams: mockTeams.slice(0, 4),
-  },
-  {
-    id: 'group-b',
-    name: 'Grupo B',
-    teams: mockTeams.slice(4, 8),
-  },
-  {
-    id: 'group-c',
-    name: 'Grupo C',
-    teams: mockTeams.slice(8, 12),
-  },
-];
+const generateMockStandings = (teamsInGroup: Team[], gamesPlayed: number): StandingEntry[] => {
+  const standings: StandingEntry[] = teamsInGroup.map(team => {
+    const won = Math.floor(Math.random() * (gamesPlayed + 1));
+    const drawn = Math.floor(Math.random() * (gamesPlayed - won + 1));
+    const lost = gamesPlayed - won - drawn;
+    const points = (won * 3) + drawn;
+    const goalsFor = Math.floor(Math.random() * 30) + lost; // Ensure GF is at least equal to losses
+    const goalsAgainst = Math.floor(Math.random() * 25) + won; // Ensure GA is at least equal to wins
+    const goalDifference = goalsFor - goalsAgainst;
+
+    return {
+      team,
+      position: 0, // Will be set after sorting
+      points,
+      played: gamesPlayed,
+      won,
+      drawn,
+      lost,
+      goalsFor,
+      goalsAgainst,
+      goalDifference,
+    };
+  });
+
+  // Sort standings: 1. Points (desc), 2. Goal Difference (desc), 3. Goals For (desc)
+  standings.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+    return b.goalsFor - a.goalsFor;
+  });
+
+  // Assign positions
+  return standings.map((entry, index) => ({ ...entry, position: index + 1 }));
+};
+
+const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+export const mockGroups: Group[] = groupLetters.map((letter, index) => {
+  const teamsForGroup = mockTeams.slice(index * 8, (index + 1) * 8);
+  const gamesPlayed = Math.floor(Math.random() * 5) + 3; // Each group played 3-7 games
+  return {
+    id: `group-${letter.toLowerCase()}`,
+    name: `Grupo ${letter}`,
+    teams: teamsForGroup,
+    standings: generateMockStandings(teamsForGroup, gamesPlayed),
+  };
+});
+
 
 const generateMatch = (
   id: string, 
@@ -64,11 +95,10 @@ const generateMatch = (
 ): Match => {
   const matchDate = new Date();
   matchDate.setDate(matchDate.getDate() + dateOffset);
-  // For live matches, set time to be very recent or current
   if (status === 'live') {
-    matchDate.setHours(new Date().getHours(), new Date().getMinutes() - 15); // e.g., started 15 mins ago
+    matchDate.setHours(new Date().getHours(), new Date().getMinutes() - 15);
   } else if (status === 'upcoming') {
-    matchDate.setHours(matchDate.getHours() + Math.floor(Math.random() * 3) + 1, Math.random() > 0.5 ? 30 : 0); // Random time in the next few hours
+    matchDate.setHours(matchDate.getHours() + Math.floor(Math.random() * 24) + 1, Math.random() > 0.5 ? 30 : 0);
   }
 
 
@@ -86,31 +116,39 @@ const generateMatch = (
   };
 };
 
-export const mockMatches: Match[] = [
-  // Grupo A
-  generateMatch('1', mockTeams[0], mockTeams[1], 'Grupo A', 'completed', -2, 1),
-  generateMatch('2', mockTeams[2], mockTeams[3], 'Grupo A', 'completed', -1, 1),
-  generateMatch('3', mockTeams[0], mockTeams[2], 'Grupo A', 'live', 0, 2), // Live match
-  generateMatch('4', mockTeams[1], mockTeams[3], 'Grupo A', 'upcoming', 1, 2),
-  generateMatch('13', mockTeams[0], mockTeams[3], 'Grupo A', 'upcoming', 2, 3),
-  generateMatch('14', mockTeams[1], mockTeams[2], 'Grupo A', 'upcoming', 2, 3),
+// Generate some upcoming/live matches from the first few groups for the carousel
+export const mockMatches: Match[] = [];
+const numCarouselMatches = 10;
+for (let i = 0; i < numCarouselMatches; i++) {
+    const groupIndex = i % 3; // Cycle through first 3 groups for variety
+    const team1Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
+    let team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
+    while (team2Index === team1Index) {
+        team2Index = Math.floor(Math.random() * mockGroups[groupIndex].teams.length);
+    }
+    const matchStatus = Math.random() > 0.6 ? 'live' : 'upcoming';
+    const dateOffset = matchStatus === 'live' ? 0 : Math.floor(Math.random() * 3); // Live today, upcoming in next 0-2 days
+    
+    mockMatches.push(
+        generateMatch(
+            (i + 1).toString(),
+            mockGroups[groupIndex].teams[team1Index],
+            mockGroups[groupIndex].teams[team2Index],
+            mockGroups[groupIndex].name,
+            matchStatus,
+            dateOffset,
+            Math.floor(Math.random() * 7) + 1 // Random matchday 1-7
+        )
+    );
+}
 
-  // Grupo B
-  generateMatch('5', mockTeams[4], mockTeams[5], 'Grupo B', 'completed', -2, 1),
-  generateMatch('6', mockTeams[6], mockTeams[7], 'Grupo B', 'completed', -1, 1),
-  generateMatch('7', mockTeams[4], mockTeams[6], 'Grupo B', 'upcoming', 0, 2), 
-  generateMatch('8', mockTeams[5], mockTeams[7], 'Grupo B', 'upcoming', 1, 2),
-  generateMatch('15', mockTeams[4], mockTeams[7], 'Grupo B', 'upcoming', 3, 3),
-  generateMatch('16', mockTeams[5], mockTeams[6], 'Grupo B', 'upcoming', 3, 3),
-  
-  // Grupo C
-  generateMatch('9', mockTeams[8], mockTeams[9], 'Grupo C', 'live', 0, 1), // Live match
-  generateMatch('10', mockTeams[10], mockTeams[11], 'Grupo C', 'upcoming', 0, 1),
-  generateMatch('11', mockTeams[8], mockTeams[10], 'Grupo C', 'upcoming', 1, 2),
-  generateMatch('12', mockTeams[9], mockTeams[11], 'Grupo C', 'upcoming', 1, 2),
-  generateMatch('17', mockTeams[8], mockTeams[11], 'Grupo C', 'upcoming', 4, 3),
-  generateMatch('18', mockTeams[9], mockTeams[10], 'Grupo C', 'upcoming', 4, 3),
-];
+// Add some completed matches for the results page
+mockMatches.push(
+  generateMatch('c1', mockTeams[0], mockTeams[1], 'Grupo A', 'completed', -2, 1),
+  generateMatch('c2', mockTeams[2], mockTeams[3], 'Grupo A', 'completed', -1, 1),
+  generateMatch('c3', mockTeams[8], mockTeams[9], 'Grupo B', 'completed', -2, 1),
+  generateMatch('c4', mockTeams[10], mockTeams[11], 'Grupo B', 'completed', -1, 1)
+);
 
 
 export const mockPlayoffRounds: PlayoffRound[] = [
@@ -128,14 +166,12 @@ export const mockPlayoffRounds: PlayoffRound[] = [
     id: 'semifinals',
     name: 'Semifinales',
     matches: [
-       // Placeholder, will be populated based on quarterfinal winners
     ],
   },
   {
     id: 'final',
     name: 'Final',
     matches: [
-      // Placeholder
     ],
   },
 ];

@@ -1,3 +1,4 @@
+
 export interface Player {
   id: string;
   name: string;
@@ -14,10 +15,24 @@ export interface Team {
   player: Player;
 }
 
+export interface StandingEntry {
+  team: Team;
+  position: number;
+  points: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+}
+
 export interface Group {
   id: string;
   name: string; 
   teams: Team[];
+  standings: StandingEntry[];
 }
 
 export interface Match {
@@ -30,7 +45,7 @@ export interface Match {
   status: 'upcoming' | 'live' | 'completed';
   groupName?: string; 
   roundName?: string; 
-  matchday?: number; // Added matchday
+  matchday?: number;
 }
 
 export interface PlayoffRound {

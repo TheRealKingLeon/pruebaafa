@@ -1,46 +1,69 @@
 
+'use client';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import Link from 'next/link';
-import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users } from 'lucide-react';
+import { CalendarDays, Clock, Swords, Info, Gamepad2, Trophy, Users, CheckCircle, BarChart3 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { mockMatches } from '@/data/mock';
-import type { Match } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { mockMatches, mockGroups } from '@/data/mock'; // mockGroups is now imported
+import type { Match, StandingEntry, Group as GroupType } from '@/types'; // Group renamed to GroupType to avoid conflict
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useState, useEffect } from 'react';
 
 export default function HomePage() {
-  const upcomingLiveMatches = mockMatches
-    .filter(match => match.status === 'upcoming' || match.status === 'live')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const [upcomingLiveMatches, setUpcomingLiveMatches] = useState<Match[]>([]);
+  const [currentTimestamp, setCurrentTimestamp] = useState(new Date().toISOString());
+
+  useEffect(() => {
+    setUpcomingLiveMatches(
+      mockMatches
+        .filter(match => new Date(match.date) >= new Date(currentTimestamp) || match.status === 'live')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    );
+    // Update current time every minute for live status, or less frequently if not needed
+    const interval = setInterval(() => {
+      setCurrentTimestamp(new Date().toISOString());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [currentTimestamp]);
+
 
   return (
     <div className="space-y-16 pt-8">
 
-      {/* Próximos Encuentros Carousel */}
       {upcomingLiveMatches.length > 0 && (
         <section className="mb-12">
           <SectionTitle>PRÓXIMOS ENCUENTROS</SectionTitle>
           <Carousel
             opts={{
               align: "start",
-              loop: upcomingLiveMatches.length > 5, // Adjust loop condition based on typical number of items visible
+              loop: upcomingLiveMatches.length > 5,
             }}
             className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
               {upcomingLiveMatches.map((match) => (
-                <CarouselItem key={match.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
+                <CarouselItem key={match.id} className="pl-2 md:pl-4 basis-full xs:basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
                   <div className="p-1">
                     <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 bg-card/90 backdrop-blur-sm overflow-hidden">
                       <CardContent className="p-3 space-y-2">
-                        {match.groupName && (
+                        {(match.groupName || match.roundName) && (
                           <p className="text-[10px] font-semibold text-primary mb-1 text-center uppercase tracking-wider">
-                            {match.groupName} {match.matchday && `- Fecha ${match.matchday}`}
+                            {match.groupName || match.roundName} {match.matchday && `- Fecha ${match.matchday}`}
                           </p>
                         )}
                         
@@ -103,11 +126,11 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* El Camino Hacia la Gloria */}
+      {/* El Camino Hacia la Gloria & Standings */}
       <section>
-        <div className="grid md:grid-cols-2 gap-10 items-center">
-          <div className="space-y-6">
-             <SectionTitle as="h2">EL CAMINO HACIA LA GLORIA</SectionTitle>
+        <div className="grid md:grid-cols-2 gap-x-10 gap-y-8 items-start">
+          <div className="space-y-6 md:sticky md:top-24"> {/* Added sticky positioning for text */}
+            <SectionTitle as="h2">EL CAMINO HACIA LA GLORIA</SectionTitle>
             <p className="text-xl font-semibold leading-relaxed text-foreground">
               ¡LA ARENA DIGITAL TE ESPERA! El <span className="text-primary font-bold">AFA eSports Showdown</span> es donde la pasión del fútbol argentino se fusiona con la adrenalina de los eSports. Los jugadores más brillantes, defendiendo los colores de los clubes más emblemáticos de AFA, se enfrentan en una batalla épica de habilidad pura, estrategia electrizante y momentos que forjarán leyendas. ¡Prepárate para una experiencia inolvidable donde cada jugada es un paso hacia la inmortalidad!
             </p>
@@ -128,16 +151,82 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="rounded-lg overflow-hidden shadow-md">
-            <Image
-              src="https://placehold.co/600x400.png"
-              alt="FC 25 Gameplay Action"
-              width={600}
-              height={400}
-              className="w-full h-auto object-cover"
-              data-ai-hint="esports soccer gameplay"
-            />
+          
+          {/* Standings Table Section */}
+          <div className="rounded-lg shadow-lg bg-card text-card-foreground overflow-hidden">
+            <CardHeader className="bg-muted/50 p-4 border-b border-border">
+              <CardTitle className="text-xl font-headline text-primary flex items-center gap-2">
+                <BarChart3 className="h-6 w-6" />
+                Posiciones
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Tabs defaultValue={mockGroups[0]?.id || 'group-a'} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-none border-b border-border bg-muted/30">
+                  {mockGroups.map((group: GroupType) => (
+                    <TabsTrigger 
+                      key={group.id} 
+                      value={group.id}
+                      className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary"
+                    >
+                      {group.name.replace('Grupo ', '')}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {mockGroups.map((group: GroupType) => (
+                  <TabsContent key={group.id} value={group.id} className="m-0">
+                    <div className="overflow-x-auto">
+                      <Table className="min-w-full">
+                        <TableHeader className="bg-secondary/30">
+                          <TableRow className="border-border">
+                            <TableHead className="px-2 py-2 text-center w-8">Pos</TableHead>
+                            <TableHead className="px-2 py-2 min-w-[150px]">Club</TableHead>
+                            <TableHead className="px-2 py-2 text-center">PTS</TableHead>
+                            <TableHead className="px-2 py-2 text-center">PJ</TableHead>
+                            <TableHead className="px-2 py-2 text-center">G</TableHead>
+                            <TableHead className="px-2 py-2 text-center">E</TableHead>
+                            <TableHead className="px-2 py-2 text-center">P</TableHead>
+                            <TableHead className="px-2 py-2 text-center">GF</TableHead>
+                            <TableHead className="px-2 py-2 text-center">GC</TableHead>
+                            <TableHead className="px-2 py-2 text-center">DG</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.standings.map((entry: StandingEntry) => (
+                            <TableRow key={entry.team.id} className="border-border hover:bg-muted/20">
+                              <TableCell className="px-2 py-2 text-center font-medium">{entry.position}</TableCell>
+                              <TableCell className="px-2 py-2">
+                                <div className="flex items-center gap-2">
+                                  <Image 
+                                    src={entry.team.logoUrl} 
+                                    alt={`${entry.team.name} logo`} 
+                                    width={20} 
+                                    height={20} 
+                                    className="object-contain"
+                                    data-ai-hint={entry.team.name.toLowerCase().includes("river") || entry.team.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                                  />
+                                  <span className="text-sm truncate max-w-[120px] sm:max-w-none">{entry.team.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-2 py-2 text-center font-bold text-primary">{entry.points}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.played}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.won}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.drawn}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.lost}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.goalsFor}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.goalsAgainst}</TableCell>
+                              <TableCell className="px-2 py-2 text-center">{entry.goalDifference}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
           </div>
+
         </div>
       </section>
 
