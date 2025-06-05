@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
         hostname: 'media.discordapp.net',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'static.lvp.global',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
