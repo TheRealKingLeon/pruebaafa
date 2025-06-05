@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.clarin.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
