@@ -183,7 +183,7 @@ export async function manualMoveTeamAction(payload: {
   teamId: string;
   sourceGroupId: string;
   targetGroupId: string;
-  specificTeamToSwapId?: string; // New optional parameter
+  specificTeamToSwapId?: string; 
 }): Promise<{ success: boolean; message: string }> {
   const { teamId, sourceGroupId, targetGroupId, specificTeamToSwapId } = payload;
 
@@ -219,9 +219,6 @@ export async function manualMoveTeamAction(payload: {
       }
       
       if (newTargetTeamIds.includes(teamId)) {
-         // This check is if the dragged team (teamId) is ALREADY in the target.
-         // This shouldn't happen if sourceGroupId !== targetGroupId and team is only in source.
-         // But as a safeguard:
         throw new Error(`El equipo (ID: ${teamId}) ya existe en el grupo de destino "${targetGroupData.name}".`);
       }
 
@@ -230,37 +227,28 @@ export async function manualMoveTeamAction(payload: {
       if (isTargetFull) {
         let teamToMoveBackId: string | undefined = undefined;
 
-        // Prioritize specificTeamToSwapId if provided and valid
         if (specificTeamToSwapId && newTargetTeamIds.includes(specificTeamToSwapId)) {
           teamToMoveBackId = specificTeamToSwapId;
         } else if (newTargetTeamIds.length > 0) { 
-          // Fallback: if no specific team or invalid specific team, swap the first one
-          // This handles cases where the drop might be on empty space of a full card
           teamToMoveBackId = newTargetTeamIds[0];
         }
         
         if (!teamToMoveBackId) {
-            throw new Error(`El grupo de destino "${targetGroupData.name}" está lleno pero no se encontró un equipo para intercambiar (teamToMoveBackId undefined).`);
+            throw new Error(`El grupo de destino "${targetGroupData.name}" está lleno pero no se encontró un equipo para intercambiar.`);
         }
         
-        // Perform SWAP
-        // 1. Update Source Group: Remove dragged team (teamId), add teamToMoveBackId
         newSourceTeamIds = newSourceTeamIds.filter(id => id !== teamId);
-        if (!newSourceTeamIds.includes(teamToMoveBackId)) { // Prevent duplicates in source
+        if (!newSourceTeamIds.includes(teamToMoveBackId)) { 
             newSourceTeamIds.push(teamToMoveBackId);
         }
         
-        // 2. Update Target Group: Remove teamToMoveBackId, add dragged team (teamId)
         newTargetTeamIds = newTargetTeamIds.filter(id => id !== teamToMoveBackId);
-        // The check for newTargetTeamIds.includes(teamId) was done above, so we can directly push
         newTargetTeamIds.push(teamId);
 
         transaction.update(sourceGroupRef, { teamIds: newSourceTeamIds, updatedAt: serverTimestamp() });
         transaction.update(targetGroupRef, { teamIds: newTargetTeamIds, updatedAt: serverTimestamp() });
       } else {
-        // Target has space, simple move
         newSourceTeamIds = newSourceTeamIds.filter(id => id !== teamId);
-        // The check for newTargetTeamIds.includes(teamId) was done above
         newTargetTeamIds.push(teamId);
         
         transaction.update(sourceGroupRef, { teamIds: newSourceTeamIds, updatedAt: serverTimestamp() });
@@ -275,3 +263,40 @@ export async function manualMoveTeamAction(payload: {
     return { success: false, message };
   }
 }
+
+
+export async function seedGroupStageMatchesAction(): Promise<{ success: boolean; message: string }> {
+  console.log("[Server Action] seedGroupStageMatchesAction called. Placeholder implementation.");
+  // TODO:
+  // 1. Fetch tournament rules (roundRobinType) from tournament_config/rules_group_stage.
+  // 2. Fetch all groups and their assigned teams from 'grupos' collection.
+  // 3. For each group:
+  //    - Check if group has TEAMS_PER_ZONE teams. If not, maybe skip or return error.
+  //    - Generate round-robin matches based on roundRobinType.
+  //    - Assign placeholder dates/times for these matches.
+  //    - Create Match objects (status: 'upcoming', no scores).
+  // 4. Save these Match objects to a new Firestore collection (e.g., 'group_stage_matches').
+  // 5. Update a flag in Firestore (e.g., tournament_config/status or rules_group_stage)
+  //    to indicate that group stage has been seeded (e.g., `groupsSeeded: true`).
+  
+  try {
+    // Simulate some work
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    
+    // Example: Set a flag in Firestore to indicate groups are seeded
+    // This part would be more complex in a real scenario.
+    // For now, we assume the client will manage the 'groupsSeeded' state locally after this action returns success.
+    // A more robust solution would be to read this flag from Firestore in GroupManagementClient.
+    
+    // const statusRef = doc(db, "tournament_config", "status_flags"); // Example path
+    // await setDoc(statusRef, { groupsSeeded: true, groupsSeededAt: serverTimestamp() }, { merge: true });
+
+    return { success: true, message: "Seed de grupos iniciado (simulación). Partidos deberían generarse y grupos bloqueados." };
+
+  } catch (error) {
+    console.error("Error in seedGroupStageMatchesAction (simulación):", error);
+    const message = error instanceof Error ? error.message : "Error desconocido durante el seed de grupos.";
+    return { success: false, message };
+  }
+}
+

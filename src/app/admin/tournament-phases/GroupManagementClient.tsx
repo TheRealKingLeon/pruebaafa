@@ -6,9 +6,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings, FileCog } from 'lucide-react'; // Added FileCog
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings, FileCog, PlaySquare, Lock } from 'lucide-react'; // Added PlaySquare, Lock
 import type { Team, Group as GroupType } from '@/types';
-import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction } from '../groups/actions';
+import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction, seedGroupStageMatchesAction } from '../groups/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -53,6 +53,11 @@ export function GroupManagementClient() {
   const [sourceGroupIdForDrag, setSourceGroupIdForDrag] = useState<string | null>(null);
   const [hoveredTeamAsDropTarget, setHoveredTeamAsDropTarget] = useState<{ teamId: string, groupId: string } | null>(null);
 
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [groupsSeeded, setGroupsSeeded] = useState(false); // New state for seeded groups
+  const [isSeeding, setIsSeeding] = useState(false); // New state for seeding process
+
+  // TODO: In a future step, load `groupsSeeded` from Firestore on component mount.
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -118,6 +123,7 @@ export function GroupManagementClient() {
       const result = await resetAndClearGroupsAction();
       if (result.success) {
         toast({ title: "Grupos Limpiados", description: result.message });
+        setGroupsSeeded(false); // If groups are reset, they are no longer seeded
         await fetchData(); 
       } else {
         toast({ title: "Error al Limpiar Grupos", description: result.message, variant: "destructive" });
@@ -129,8 +135,32 @@ export function GroupManagementClient() {
       setIsResetting(false);
     }
   };
+
+  const handleSeedGroups = async () => {
+    setIsSeeding(true);
+    try {
+      const result = await seedGroupStageMatchesAction();
+      if (result.success) {
+        toast({ title: "Seed Iniciado", description: result.message });
+        setGroupsSeeded(true); // Mark groups as seeded
+        // Optionally, fetchData() again if the action modifies group data or match counts
+      } else {
+        toast({ title: "Error al Iniciar Seed", description: result.message, variant: "destructive" });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido al iniciar el seed.";
+      toast({ title: "Error Inesperado (Seed)", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
   
   const onDragStart = (e: DragEvent<HTMLLIElement>, team: Team, currentGroupId: string) => {
+    if (groupsSeeded) {
+        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez iniciado el seed.", variant: "default" });
+        e.preventDefault();
+        return;
+    }
     e.dataTransfer.setData('teamId', team.id);
     e.dataTransfer.setData('sourceGroupId', currentGroupId);
     setDraggedTeam(team);
@@ -139,6 +169,7 @@ export function GroupManagementClient() {
   };
 
   const onDragEnd = (e: DragEvent<HTMLLIElement>) => {
+    if (groupsSeeded) return;
     e.currentTarget.style.opacity = '1';
     document.querySelectorAll('.team-drop-target-active').forEach(el => el.classList.remove('team-drop-target-active'));
     setDraggedTeam(null);
@@ -147,10 +178,15 @@ export function GroupManagementClient() {
   };
 
   const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (groupsSeeded) {
+        e.dataTransfer.dropEffect = "none";
+        return;
+    }
     e.preventDefault(); 
   };
 
   const onTeamDragEnter = (e: DragEvent<HTMLLIElement>, teamId: string, groupId: string) => {
+    if (groupsSeeded) return;
     if (draggedTeam && draggedTeam.id !== teamId && sourceGroupIdForDrag !== groupId) {
       setHoveredTeamAsDropTarget({ teamId, groupId });
       e.currentTarget.classList.add('team-drop-target-active');
@@ -158,11 +194,17 @@ export function GroupManagementClient() {
   };
 
   const onTeamDragLeave = (e: DragEvent<HTMLLIElement>) => {
+    if (groupsSeeded) return;
     e.currentTarget.classList.remove('team-drop-target-active');
   };
 
 
   const onDrop = async (e: DragEvent<HTMLDivElement>, targetGroupId: string) => {
+    if (groupsSeeded) {
+        toast({ title: "Grupos Bloqueados", description: "No se pueden mover equipos una vez iniciado el seed.", variant: "default" });
+        e.preventDefault();
+        return;
+    }
     e.preventDefault();
     document.querySelectorAll('.team-drop-target-active').forEach(el => el.classList.remove('team-drop-target-active'));
 
@@ -247,7 +289,6 @@ export function GroupManagementClient() {
       return newGroups;
     });
     
-    // Reset drag states after optimistic update
     setDraggedTeam(null); 
     setSourceGroupIdForDrag(null);
     setHoveredTeamAsDropTarget(null);
@@ -265,6 +306,10 @@ export function GroupManagementClient() {
     }
     await fetchData(); 
   };
+
+  const allZonesFull = populatedGroups.length === 8 && populatedGroups.every(g => g.teams.length === TEAMS_PER_ZONE_CLIENT);
+  const canSeedGroups = !groupsSeeded && allZonesFull && allTeams.length >= (8 * TEAMS_PER_ZONE_CLIENT);
+
 
   if (isLoading) {
     return (
@@ -294,17 +339,25 @@ export function GroupManagementClient() {
           outline-offset: 2px;
           background-color: hsla(var(--primary-hsl), 0.1);
         }
+        .groups-locked .cursor-grab {
+            cursor: not-allowed !important;
+        }
       `}</style>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-card border rounded-lg shadow">
         <CardTitle className="text-2xl">Configurar Zonas de Grupos</CardTitle>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button onClick={handleAutoAssign} disabled={isAssigning || allTeams.length === 0} className="w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={handleAutoAssign} 
+            disabled={isAssigning || allTeams.length === 0 || groupsSeeded} 
+            className="w-full sm:w-auto"
+            title={groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar equipos aleatoriamente")}
+          >
             <Shuffle className="mr-2 h-5 w-5" />
-            {isAssigning ? "Asignando..." : (allTeams.length === 0 ? "Añade equipos primero" : "Asignar Automáticamente")}
+            {isAssigning ? "Asignando..." : (allTeams.length === 0 ? "Añade equipos" : "Asignar Auto.")}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" disabled={isResetting} className="w-full sm:w-auto">
+              <Button variant="outline" disabled={isResetting || groupsSeeded} className="w-full sm:w-auto" title={groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." : "Limpiar todos los equipos de las zonas"}>
                 <RotateCcw className="mr-2 h-5 w-5" />
                 {isResetting ? "Limpiando..." : "Reiniciar Grupos"}
               </Button>
@@ -315,7 +368,7 @@ export function GroupManagementClient() {
                 <AlertDialogDescription>
                   Esta acción desasignará todos los equipos de todas las zonas.
                   La asignación automática deberá realizarse nuevamente si deseas llenarlos.
-                  Esta acción no se puede deshacer.
+                  Los grupos dejarán de estar "semeados". Esta acción no se puede deshacer.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -326,17 +379,31 @@ export function GroupManagementClient() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Dialog>
+          <Dialog open={isRulesModalOpen} onOpenChange={setIsRulesModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto" disabled={groupsSeeded || isAssigning || isResetting || isSeeding} title={groupsSeeded ? "Las reglas no pueden cambiarse después de semear los grupos." : "Configurar reglas de la fase de grupos"}>
                 <FileCog className="mr-2 h-5 w-5" />
                 Configurar Reglas
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-              <TournamentRulesClient />
+              <TournamentRulesClient onSaveSuccess={() => setIsRulesModalOpen(false)} />
             </DialogContent>
           </Dialog>
+          <Button 
+            onClick={handleSeedGroups} 
+            disabled={!canSeedGroups || isSeeding || isAssigning || isResetting} 
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+            title={
+                groupsSeeded ? "Los grupos ya han sido semeados y están bloqueados." :
+                !allZonesFull ? `Se requiere que todas las ${populatedGroups.length} zonas tengan ${TEAMS_PER_ZONE_CLIENT} equipos. Actualmente algunas no cumplen.` :
+                allTeams.length < (8 * TEAMS_PER_ZONE_CLIENT) ? `Se requieren al menos ${8*TEAMS_PER_ZONE_CLIENT} equipos en total.` :
+                "Iniciar el sembrado de grupos y generar partidos"
+            }
+          >
+            {groupsSeeded ? <Lock className="mr-2 h-5 w-5" /> : <PlaySquare className="mr-2 h-5 w-5" />}
+            {isSeeding ? "Semeando..." : groupsSeeded ? "Grupos Semeados" : "Iniciar Seed"}
+          </Button>
         </div>
       </div>
       
@@ -374,11 +441,18 @@ export function GroupManagementClient() {
         </Card>
       )}
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {groupsSeeded && (
+        <div className="p-4 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-200 dark:text-blue-800 flex items-center gap-2" role="alert">
+            <Lock className="h-5 w-5"/>
+            <span className="font-medium">¡Grupos Semeados y Bloqueados!</span> Ya no se pueden modificar las zonas ni las reglas. Los partidos de la fase de grupos han sido generados (simulación).
+        </div>
+      )}
+
+      <div className={`grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${groupsSeeded ? 'groups-locked' : ''}`}>
         {populatedGroups.map((group) => ( 
           <Card 
             key={group.id} 
-            className={`shadow-lg ${group.teams.length === 0 ? 'opacity-70 border-dashed' : ''}`}
+            className={`shadow-lg transition-opacity ${group.teams.length === 0 ? 'opacity-70 border-dashed' : ''} ${groupsSeeded ? 'opacity-80' : ''}`}
             onDragOver={onDragOver}
             onDrop={(e) => onDrop(e, group.id)}
             data-groupid={group.id}
@@ -396,8 +470,8 @@ export function GroupManagementClient() {
                   {group.teams.map((team) => (
                     <li 
                       key={team.id} 
-                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors cursor-grab ${draggedTeam?.id === team.id && sourceGroupIdForDrag === group.id ? 'opacity-50 bg-primary/20' : ''}`}
-                      draggable="true"
+                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors ${groupsSeeded ? 'cursor-not-allowed' : 'cursor-grab'} ${draggedTeam?.id === team.id && sourceGroupIdForDrag === group.id ? 'opacity-50 bg-primary/20' : ''}`}
+                      draggable={!groupsSeeded}
                       onDragStart={(e) => onDragStart(e, team, group.id)}
                       onDragEnd={onDragEnd}
                       onDragEnter={(e) => onTeamDragEnter(e, team.id, group.id)}
@@ -418,7 +492,8 @@ export function GroupManagementClient() {
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {draggedTeam ? `Arrastra aquí para mover a ${group.name}` : 'Zona vacía. Arrastra equipos aquí.'}
+                  {draggedTeam && !groupsSeeded ? `Arrastra aquí para mover a ${group.name}` : 'Zona vacía.'}
+                  {groupsSeeded && 'Zona Bloqueada.'}
                 </p>
               )}
             </CardContent>
@@ -426,14 +501,12 @@ export function GroupManagementClient() {
         ))}
       </div>
       <p className="text-sm text-muted-foreground italic mt-6">
-        Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena, se intentará un intercambio.
-        Si sueltas en un espacio vacío de una zona llena, se intercambiará con el primer equipo de esa zona.
-        Cada zona tiene un máximo de {TEAMS_PER_ZONE_CLIENT} equipos. Las zonas se guardan en Firestore.
-        Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
+        {groupsSeeded 
+            ? "Los grupos están semeados y bloqueados. Para realizar cambios, primero se necesitaría una opción para 'Resetear Torneo Completo' (funcionalidad futura)."
+            : `Puedes arrastrar y soltar equipos entre las zonas. Si sueltas sobre un equipo en una zona llena, se intentará un intercambio. Cada zona tiene un máximo de ${TEAMS_PER_ZONE_CLIENT} equipos.`
+        }
       </p>
       
     </div>
   );
 }
-
-    

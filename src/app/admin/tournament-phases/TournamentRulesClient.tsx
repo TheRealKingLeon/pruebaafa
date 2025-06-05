@@ -53,10 +53,9 @@ interface SortableTiebreakerItemProps {
   control: any; 
   register: any; 
   errors: any; 
-  currentEnabledStatus: boolean; // Pass current enabled status for the input
 }
 
-function SortableTiebreakerItem({ item, index, control, register, errors, currentEnabledStatus }: SortableTiebreakerItemProps) {
+function SortableTiebreakerItem({ item, index, control, register, errors }: SortableTiebreakerItemProps) {
   const {
     attributes,
     listeners,
@@ -107,14 +106,17 @@ function SortableTiebreakerItem({ item, index, control, register, errors, curren
         min="0"
         {...register(`tiebreakers.${index}.priority`)}
         className={`w-20 text-center ${errors?.tiebreakers?.[index]?.priority ? 'border-destructive' : ''}`}
-        disabled={!currentEnabledStatus} 
+        disabled={!item.enabled} 
       />
     </div>
   );
 }
 
+interface TournamentRulesClientProps {
+  onSaveSuccess?: () => void;
+}
 
-export function TournamentRulesClient() {
+export function TournamentRulesClient({ onSaveSuccess }: TournamentRulesClientProps) {
   const { toast } = useToast();
   const [isLoadingRules, setIsLoadingRules] = useState(true);
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null);
@@ -124,7 +126,7 @@ export function TournamentRulesClient() {
     defaultValues: defaultFormValues,
   });
 
-  const { fields, move, replace } = useFieldArray({
+  const { fields, move } = useFieldArray({
     control: form.control,
     name: "tiebreakers",
     keyName: "fieldId" 
@@ -147,7 +149,6 @@ export function TournamentRulesClient() {
         if (result.success) {
           if (result.data) {
             console.log("[TournamentRulesClient] Rules loaded from Firestore, resetting form:", result.data);
-            // Ensure all tiebreaker criteria are present, merging with defaults if necessary
             const allCriteriaKeys = Object.keys(initialTiebreakerCriteria) as TiebreakerCriterionKey[];
             const loadedTiebreakers = result.data.tiebreakers || [];
             const loadedTiebreakerIds = new Set(loadedTiebreakers.map(tb => tb.id));
@@ -155,17 +156,14 @@ export function TournamentRulesClient() {
             const mergedTiebreakers = allCriteriaKeys.map(key => {
                 const loadedOne = loadedTiebreakers.find(tb => tb.id === key);
                 if (loadedOne) return loadedOne;
-                // If not found in loaded data, use default structure for this criterion
                 const defaultOne = defaultTiebreakers.find(dtb => dtb.id === key);
                 return defaultOne || { id: key, name: initialTiebreakerCriteria[key], priority: 0, enabled: false };
             });
             
-            // Sort mergedTiebreakers by priority (enabled first, then by priority number)
-            // then ensure the visual order matches this initial load order
             mergedTiebreakers.sort((a, b) => {
                 if (a.enabled && !b.enabled) return -1;
                 if (!a.enabled && b.enabled) return 1;
-                if (a.priority === 0 && b.priority > 0) return 1; // Unprioritized enabled go after prioritized
+                if (a.priority === 0 && b.priority > 0) return 1;
                 if (a.priority > 0 && b.priority === 0) return -1;
                 return a.priority - b.priority;
             });
@@ -174,7 +172,7 @@ export function TournamentRulesClient() {
             toast({ title: "Configuración Cargada", description: "Reglas cargadas desde Firestore." });
           } else {
             console.log("[TournamentRulesClient] No rules found in Firestore, using default values.");
-            form.reset(defaultFormValues); // Ensure form is reset to defaults if nothing loaded
+            form.reset(defaultFormValues);
             toast({ title: "Sin Configuración Previa", description: "Usando configuración por defecto. Guarda para persistir.", variant: "default" });
           }
         } else {
@@ -196,7 +194,7 @@ export function TournamentRulesClient() {
     }
     fetchRules();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Runs once on mount
+  }, []); 
 
   useEffect(() => {
     if (Object.keys(form.formState.errors).length > 0) {
@@ -208,7 +206,6 @@ export function TournamentRulesClient() {
     const updated = [...currentTiebreakers];
     let enabledPriorityCounter = 1;
     
-    // Assign priorities to enabled tiebreakers based on their current order
     updated.forEach((tb) => {
       if (tb.enabled) {
         tb.priority = enabledPriorityCounter++;
@@ -224,12 +221,10 @@ export function TournamentRulesClient() {
     if (active.id !== over?.id && over) {
       const oldIndex = fields.findIndex((field) => field.fieldId === active.id);
       const newIndex = fields.findIndex((field) => field.fieldId === over.id);
-      move(oldIndex, newIndex); // This updates the visual order
+      move(oldIndex, newIndex); 
       
-      // Get the new order from the form state after `move`
       const newOrderedTiebreakers = form.getValues('tiebreakers');
       const finalPrioritizedTiebreakers = updatePriorities(newOrderedTiebreakers);
-      // Update the form state with re-calculated priorities
       form.setValue('tiebreakers', finalPrioritizedTiebreakers, { shouldValidate: true, shouldDirty: true });
     }
   };
@@ -246,18 +241,18 @@ export function TournamentRulesClient() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [form, updatePriorities]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.watch, form.getValues, form.setValue]);
 
 
   const onSubmit: SubmitHandler<TournamentRulesFormInput> = async (data) => {
     console.log("Form.handleSubmit está llamando a onSubmit con datos:", data);
     
-    // Re-process priorities one last time before sending to ensure consistency
     const processedTiebreakers = updatePriorities(data.tiebreakers);
     
     const payload: TournamentRulesFormInput = {
         ...data,
-        tiebreakers: processedTiebreakers, // Send all tiebreakers, server action does not filter
+        tiebreakers: processedTiebreakers,
     };
     
     console.log("[TournamentRulesClient] Payload to be sent to server action:", JSON.stringify(payload, null, 2));
@@ -268,7 +263,10 @@ export function TournamentRulesClient() {
         title: "Configuración Guardada",
         description: result.message,
       });
-      form.reset(payload, { keepValues: true, keepDirty: false, keepDefaultValues: false }); // Reflect saved state
+      form.reset(payload, { keepValues: true, keepDirty: false, keepDefaultValues: false }); 
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
     } else {
       toast({
         title: "Error al Guardar",
@@ -399,7 +397,7 @@ export function TournamentRulesClient() {
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
-                        value={field.value} // Ensure value is controlled
+                        value={field.value} 
                         defaultValue={field.value}
                         className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                       >
@@ -448,12 +446,11 @@ export function TournamentRulesClient() {
                     return (
                       <SortableTiebreakerItem
                         key={field.fieldId} 
-                        item={{...field, ...currentFieldValue}} // Pass current field values for 'enabled' state
+                        item={{...field, ...currentFieldValue}} 
                         index={index}
                         control={form.control}
                         register={form.register}
                         errors={form.formState.errors}
-                        currentEnabledStatus={currentFieldValue.enabled}
                       />
                     );
                   })}
