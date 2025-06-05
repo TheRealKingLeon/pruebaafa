@@ -138,8 +138,8 @@ export default function ParticipantsPage() {
         />
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8 items-start">
-        <div className="md:col-span-1">
+      <div className="grid md:grid-cols-5 gap-8 items-start"> {/* Changed from md:grid-cols-3 */}
+        <div className="md:col-span-2"> {/* Changed from md:col-span-1 */}
           <Card className="shadow-lg sticky top-20">
             <CardContent className="p-0">
               <ScrollArea className="h-[calc(100vh-20rem)] min-h-[400px] rounded-md"> {/* Adjusted height */}
@@ -167,8 +167,8 @@ export default function ParticipantsPage() {
                             {team.player ? (
                               <span className={`text-xs truncate block 
                                 ${selectedClubLogo === team.logoUrl && selectedPlayer === team.player 
-                                  ? 'text-primary-foreground' // Fully opaque white when selected
-                                  : 'text-muted-foreground group-hover:text-primary-foreground/80' // Default and non-selected hover state
+                                  ? 'text-primary-foreground' 
+                                  : 'text-muted-foreground group-hover:text-primary-foreground/80' 
                                 }`
                               }>
                                 {team.player.name} (@{team.player.gamerTag})
@@ -198,10 +198,11 @@ export default function ParticipantsPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-3"> {/* Changed from md:col-span-2 */}
           <PlayerDetailCard player={selectedPlayer} clubName={selectedClubName} clubLogoUrl={selectedClubLogo} />
         </div>
       </div>
     </div>
   );
 }
+
