@@ -6,9 +6,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move } from 'lucide-react';
+import { Loader2, AlertTriangle, Users, Shuffle, Info, RotateCcw, Move, Settings } from 'lucide-react'; // Added Settings icon
 import type { Team, Group as GroupType } from '@/types';
-import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction } from '../groups/actions'; // Adjusted import path
+import { getGroupsAndTeamsAction, autoAssignTeamsToGroupsAction, resetAndClearGroupsAction, manualMoveTeamAction } from '../groups/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { TournamentRulesClient } from './TournamentRulesClient'; // Import the rules client
+import { Separator } from '@/components/ui/separator'; // Import Separator
 
 interface PopulatedGroup extends Omit<GroupType, 'teamIds'> {
   teams: Team[];
@@ -152,6 +154,7 @@ export function GroupManagementClient() {
 
     const teamId = e.dataTransfer.getData('teamId');
     const currentSourceGroupId = e.dataTransfer.getData('sourceGroupId');
+    let toastMessage: { title: string, description: string, variant?: "destructive" } | null = null;
 
     if (!teamId || !currentSourceGroupId || !targetGroupId ) {
       setDraggedTeam(null); 
@@ -177,9 +180,7 @@ export function GroupManagementClient() {
     const specificTeamToSwapId = (hoveredTeamAsDropTarget && hoveredTeamAsDropTarget.groupId === targetGroupId)
                                   ? hoveredTeamAsDropTarget.teamId
                                   : undefined;
-
-    let optimisticErrorCondition: { title: string, description: string, variant: "destructive" } | null = null;
-
+    
     setPopulatedGroups(prevGroups => {
       const newGroups = prevGroups.map(g => ({
           ...g,
@@ -197,7 +198,7 @@ export function GroupManagementClient() {
       const targetGroup = newGroups[targetGroupIndex];
 
       if (targetGroup.teams.find(t => t.id === teamId)) {
-         optimisticErrorCondition = { title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" };
+         toastMessage = { title: "Equipo Duplicado", description: `El equipo "${teamToMove.name}" ya está en el grupo "${targetGroup.name}".`, variant: "destructive" };
          return prevGroups;
       }
 
@@ -213,7 +214,7 @@ export function GroupManagementClient() {
         }
 
         if (!teamToSwapOutClient) {
-          optimisticErrorCondition = { title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" };
+          toastMessage = { title: "Error de Intercambio", description: "El grupo de destino está lleno pero no se encontró un equipo para intercambiar.", variant: "destructive" };
           return prevGroups;
         }
 
@@ -230,8 +231,8 @@ export function GroupManagementClient() {
       return newGroups;
     });
     
-    if (optimisticErrorCondition) {
-        toast(optimisticErrorCondition);
+    if (toastMessage) {
+        toast(toastMessage as any); // Cast because variant is optional and toast expects it.
         setDraggedTeam(null); 
         setSourceGroupIdForDrag(null);
         setHoveredTeamAsDropTarget(null);
@@ -245,14 +246,11 @@ export function GroupManagementClient() {
     const result = await manualMoveTeamAction({ teamId, sourceGroupId: currentSourceGroupId, targetGroupId, specificTeamToSwapId });
     if (result.success) {
       toast({ title: "Acción Completada", description: result.message });
-      // fetchData will be called by useEffect if manualMoveTeamAction caused Firestore changes that would trigger a re-render or if we explicitly call it
     } else {
       toast({ title: "Error al Mover/Intercambiar", description: result.message, variant: "destructive" });
     }
-    await fetchData(); // Always refetch after action to ensure UI consistency with DB
+    await fetchData();
   };
-
-  const activeGroups = populatedGroups.filter(group => group.teams.length > 0);
 
   if (isLoading) {
     return (
@@ -284,7 +282,7 @@ export function GroupManagementClient() {
         }
       `}</style>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-card border rounded-lg shadow">
-        <CardTitle className="text-2xl">Configurar Zonas</CardTitle>
+        <CardTitle className="text-2xl">Configurar Zonas de Grupos</CardTitle>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button onClick={handleAutoAssign} disabled={isAssigning || allTeams.length === 0} className="w-full sm:w-auto">
             <Shuffle className="mr-2 h-5 w-5" />
@@ -408,7 +406,17 @@ export function GroupManagementClient() {
         Cada zona tiene un máximo de {TEAMS_PER_ZONE_CLIENT} equipos. Las zonas se guardan en Firestore.
         Usa "Reiniciar Grupos" para limpiar todas las asignaciones.
       </p>
+
+      <Separator className="my-8" />
+
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+            <Settings className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl font-semibold text-foreground">Reglas de la Fase de Grupos</h2>
+        </div>
+        <TournamentRulesClient />
+      </div>
+
     </div>
   );
 }
-
