@@ -4,7 +4,10 @@
 import { db, getFirebaseDebugInfo } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp, getDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Team } from '@/types';
-import { addClubSchema, type AddClubFormInput, type EditClubFormInput } from './schemas';
+// Import client-facing types if other actions in this file need them
+import { type EditClubFormInput } from './schemas'; 
+// Import server-specific schema and type for addClubAction and importClubsAction
+import { addClubSchemaForServer, type AddClubFormInputForServer } from './server-schemas';
 import { z } from 'zod';
 
 // Helper function to check for duplicate club name (case-insensitive)
@@ -32,8 +35,8 @@ async function isClubNameDuplicate(name: string, excludeClubId?: string): Promis
   return false; // No duplicate found
 }
 
-// Add Club Action
-export async function addClubAction(data: AddClubFormInput) {
+// Add Club Action - Uses AddClubFormInputForServer for its data type
+export async function addClubAction(data: AddClubFormInputForServer) { // Changed type here
   console.log("[Server Action] addClubAction called with data:", JSON.stringify(data));
   
   const debugInfo = getFirebaseDebugInfo();
@@ -65,7 +68,7 @@ export async function addClubAction(data: AddClubFormInput) {
     const newClub = {
       id: docRef.id,
       ...data, // name, logoUrl
-    } as Team;
+    } as Team; // Type assertion, ensure Team is compatible
 
     return { success: true, message: `Club "${data.name}" añadido con ID: ${docRef.id}.`, club: newClub };
   } catch (error) {
@@ -170,7 +173,7 @@ export async function deleteClubAction(clubId: string) {
   }
 }
 
-// Type for CSV import data
+// Type for CSV import data (aligns with AddClubFormInputForServer)
 export interface ClubImportData {
   name: string;
   logoUrl: string;
@@ -220,10 +223,11 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
   for (let i = 0; i < clubsToImport.length; i++) {
     const clubData = clubsToImport[i]; 
     const lineNumber = i + 1;
-    let validatedDataIfSuccessful: AddClubFormInput | null = null; 
+    let validatedDataIfSuccessful: AddClubFormInputForServer | null = null; 
 
     try {
-      const validationResult = addClubSchema.safeParse(clubData);
+      // Use the server-specific schema for validation
+      const validationResult = addClubSchemaForServer.safeParse(clubData);
       if (!validationResult.success) {
         errorCount++;
         const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'field'}: ${e.message}`).join('; ');
@@ -266,7 +270,12 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       errorCount++;
       let specificErrorReason = "Error desconocido durante el procesamiento en servidor.";
       if (error instanceof TypeError && error.message.includes("is not a function")) {
-          specificErrorReason = `Error de Configuración del Servidor: ${error.message}. Revisa el empaquetador (Turbopack) y dependencias.`;
+          // Check if the error message contains the specific problematic import path from the original error
+          if (error.message.includes("addClubSchema.safeParse") || error.message.includes("addClubSchemaForServer.safeParse")) {
+             specificErrorReason = `Error de Configuración del Servidor: ${error.message}. Revisa el empaquetador (Turbopack) y dependencias.`;
+          } else {
+             specificErrorReason = `Error de Tipo en Servidor: ${error.message}.`;
+          }
       } else if (error instanceof Error) {
           specificErrorReason = error.message;
       } else {
@@ -349,5 +358,3 @@ export async function deleteAllClubsAction(): Promise<{ success: boolean; messag
     };
   }
 }
-
-    
