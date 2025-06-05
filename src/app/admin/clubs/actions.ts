@@ -35,7 +35,7 @@ export async function addClubAction(data: AddClubFormInput) {
     console.error("[Server Action] Firestore db instance is not properly initialized. Debug info:", JSON.stringify(debugInfo, null, 2));
     return { 
       success: false, 
-      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` 
     };
   }
 
@@ -70,7 +70,7 @@ export async function addClubAction(data: AddClubFormInput) {
         console.error("[Server Action] Firebase error code:", (error as any).code);
       }
     }
-    return { success: false, message: `Error al añadir el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
+    return { success: false, message: `Error al añadir el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` };
   }
 }
 
@@ -87,7 +87,7 @@ export async function updateClubAction(data: EditClubFormInput) {
     console.error("[Server Action] Firestore db instance is not properly initialized for update. Debug info:", JSON.stringify(debugInfo, null, 2));
     return { 
       success: false, 
-      message: `Error de configuración (update): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+      message: `Error de configuración (update): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 
@@ -117,7 +117,7 @@ export async function updateClubAction(data: EditClubFormInput) {
         console.error("[Server Action] Firebase error code:", (error as any).code);
       }
     }
-    return { success: false, message: `Error al actualizar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
+    return { success: false, message: `Error al actualizar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` };
   }
 }
 
@@ -133,7 +133,7 @@ export async function deleteClubAction(clubId: string) {
     console.error("[Server Action] Firestore db instance is not properly initialized for delete. Debug info:", JSON.stringify(debugInfo, null, 2));
     return { 
       success: false, 
-      message: `Error de configuración (delete): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+      message: `Error de configuración (delete): la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 
@@ -159,7 +159,7 @@ export async function deleteClubAction(clubId: string) {
         console.error("[Server Action] Firebase error code:", (error as any).code);
       }
     }
-    return { success: false, message: `Error al eliminar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` };
+    return { success: false, message: `Error al eliminar el club: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` };
   }
 }
 
@@ -192,7 +192,7 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
   if (!debugInfo.isDbInitialized || !db) {
     return {
       success: false,
-      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`,
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}`,
       importedCount: 0,
       skippedCount: clubsToImport.length,
       errorCount: 0,
@@ -211,38 +211,38 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
   const details: ImportClubResultDetail[] = [];
 
   for (let i = 0; i < clubsToImport.length; i++) {
-    const clubData = clubsToImport[i];
+    const clubData = clubsToImport[i]; 
     const lineNumber = i + 1;
-
-    const validationResult = addClubSchema.safeParse(clubData);
-    if (!validationResult.success) {
-      errorCount++;
-      skippedCount++;
-      details.push({
-        lineNumber,
-        clubName: clubData.name || 'Nombre no proporcionado',
-        status: 'error',
-        reason: `Datos inválidos: ${validationResult.error.errors.map(e => e.message).join(', ')}`,
-      });
-      continue;
-    }
-
-    const validatedData = validationResult.data;
+    let validatedDataIfSuccessful: AddClubFormInput | null = null; 
 
     try {
-      if (await isClubNameDuplicate(validatedData.name)) {
+      const validationResult = addClubSchema.safeParse(clubData);
+      if (!validationResult.success) {
+        errorCount++;
+        details.push({
+          lineNumber,
+          clubName: clubData.name || 'Nombre no proporcionado',
+          status: 'error',
+          reason: `Datos inválidos: ${validationResult.error.errors.map(e => e.message).join(', ')}`,
+        });
+        continue; 
+      }
+      
+      validatedDataIfSuccessful = validationResult.data; 
+
+      if (await isClubNameDuplicate(validatedDataIfSuccessful.name)) {
         skippedCount++;
         details.push({
           lineNumber,
-          clubName: validatedData.name,
+          clubName: validatedDataIfSuccessful.name,
           status: 'skipped',
-          reason: `El club "${validatedData.name}" ya existe.`,
+          reason: `El club "${validatedDataIfSuccessful.name}" ya existe.`,
         });
         continue;
       }
 
       const newClubDoc = {
-        ...validatedData,
+        ...validatedDataIfSuccessful,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -250,31 +250,37 @@ export async function importClubsAction(clubsToImport: ClubImportData[]): Promis
       importedCount++;
       details.push({
         lineNumber,
-        clubName: validatedData.name,
+        clubName: validatedDataIfSuccessful.name,
         status: 'imported',
       });
     } catch (error) {
       errorCount++;
-      skippedCount++;
-      let errorMessage = "Error desconocido al añadir el club a Firestore.";
+      let errorMessage = "Error desconocido al procesar el club en Firestore.";
       if (error instanceof Error) {
         errorMessage = error.message;
       }
       details.push({
         lineNumber,
-        clubName: validatedData.name,
+        clubName: validatedDataIfSuccessful?.name || clubData.name || 'Nombre no disponible', 
         status: 'error',
         reason: errorMessage,
       });
-      console.error(`[Server Action] Error adding club "${validatedData.name}" from CSV:`, error);
+      console.error(`[Server Action] Error processing club "${validatedDataIfSuccessful?.name || clubData.name}" from CSV:`, error);
     }
   }
 
-  const overallSuccess = importedCount > 0;
+  const overallSuccess = importedCount > 0 && errorCount === 0; 
   let message = `${importedCount} clubes importados.`;
   if (skippedCount > 0) message += ` ${skippedCount} omitidos.`;
-  if (errorCount > 0 && skippedCount === 0) message += ` ${errorCount} con errores.`;
-  else if (errorCount > 0 && skippedCount > 0) message = `${importedCount} clubes importados, ${skippedCount} omitidos (incluyendo ${errorCount} con errores de importación).`;
+  if (errorCount > 0) message += ` ${errorCount} con errores.`;
+
+  if (errorCount > 0) {
+    if (importedCount > 0 || skippedCount > 0) {
+        message = `${importedCount} clubes importados, ${skippedCount} omitidos. Hubo ${errorCount} errores durante el proceso.`;
+    } else {
+        message = `Proceso finalizado con ${errorCount} errores. Ningún club importado.`;
+    }
+  }
 
 
   console.log("[Server Action] importClubsAction finished. Result:", { importedCount, skippedCount, errorCount });
@@ -297,7 +303,7 @@ export async function deleteAllClubsAction(): Promise<{ success: boolean; messag
     console.error("[Server Action] Firestore db instance is not properly initialized for deleteAllClubs. Debug info:", JSON.stringify(debugInfo, null, 2));
     return {
       success: false,
-      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}`
+      message: `Error de configuración: la base de datos no está inicializada. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 
@@ -326,9 +332,7 @@ export async function deleteAllClubsAction(): Promise<{ success: boolean; messag
     }
     return { 
         success: false, 
-        message: `Error al eliminar todos los clubes: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+        message: `Error al eliminar todos los clubes: ${errorMessage}. \nDebug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` 
     };
   }
 }
-
-    
