@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // Added 'from 'next/navigation';'
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SectionTitle } from '@/components/shared/SectionTitle';
@@ -13,7 +14,7 @@ import { ArrowLeft, Save, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import type { Match, Team } from '@/types';
 import { mockMatches, mockTeams } from '@/data/mock'; // Will be replaced with Firestore actions
-import { updateMatchAction, matchFormSchema, type EditMatchFormInput } from '../actions'; // Updated schema import
+import { updateMatchAction, matchFormSchema, type EditMatchFormInput } from '../../actions'; // Corrected schema import
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -27,7 +28,7 @@ export default function EditMatchPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<EditMatchFormInput>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<EditMatchFormInput>({
     resolver: zodResolver(matchFormSchema),
   });
 
@@ -229,17 +230,3 @@ export default function EditMatchPage() {
     </div>
   );
 }
-
-// Helper to watch field values to conditionally disable score inputs
-function watch(fieldName: keyof EditMatchFormInput): any {
-    const { watch } = useFormContext<EditMatchFormInput>(); // if not using FormProvider context, call useForm directly
-    return watch(fieldName);
-}
-
-// Ensure useFormContext is available if Card is not wrapped in FormProvider from react-hook-form
-// This helper is a bit simplified; typically, you'd get `watch` directly from the `useForm` hook instance.
-// For this specific case, it's better to get `watch` from the `useForm` call within EditMatchPage directly.
-// I've adjusted the main component to use `watch` from its own `useForm` scope.
-// Removed `useFormContext` from the helper as it might not be available.
-// The `watch` function is now scoped within the component itself.
-
