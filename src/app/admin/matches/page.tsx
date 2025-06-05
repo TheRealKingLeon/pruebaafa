@@ -8,14 +8,15 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Match } from '@/types';
+import type { Match, Team } from '@/types';
 import { Edit, PlusCircle, CalendarDays, Loader2, Info, AlertTriangle, ListFilter } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-import { getMatchesAction } from './actions';
+import { getMatchesAction, getAllTeamsAction } from './actions'; // Added getAllTeamsAction
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EditMatchDialog } from '@/components/admin/matches/EditMatchDialog'; // Import the new dialog
 
 type MatchStatus = Match['status'];
 const ALL_STATUSES: MatchStatus[] = ['pending_date', 'upcoming', 'live', 'completed'];
@@ -30,6 +31,7 @@ const STATUS_DISPLAY_NAMES: Record<MatchStatus, string> = {
 export default function ManageMatchesPage() {
   const [allMatches, setAllMatches] = useState<Match[] | null>(null);
   const [filteredMatches, setFilteredMatches] = useState<Match[] | null>(null);
+  const [allTeams, setAllTeams] = useState<Team[]>([]); // State for all teams
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -38,57 +40,76 @@ export default function ManageMatchesPage() {
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [availableGroups, setAvailableGroups] = useState<string[]>([]);
 
-  const fetchMatches = useCallback(async () => {
+  // State for the edit dialog
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentEditingMatch, setCurrentEditingMatch] = useState<Match | null>(null);
+
+  const fetchMatchesAndTeams = useCallback(async () => { // Renamed to reflect it fetches teams too
     setIsLoading(true);
     setError(null);
-    const result = await getMatchesAction();
-    if (result.error || !result.matches) {
-      setError(result.error || "No se pudieron cargar los partidos.");
-      toast({
-        title: "Error al Cargar Partidos",
-        description: result.error || "No se pudieron cargar los partidos.",
-        variant: "destructive",
-      });
-      setAllMatches([]);
-    } else {
-      // Enhanced client-side sorting
-      const sortedMatches = result.matches.sort((a, b) => {
-        const aHasDate = !!a.date;
-        const bHasDate = !!b.date;
+    try {
+      const [matchesResult, teamsResult] = await Promise.all([
+        getMatchesAction(),
+        getAllTeamsAction() // Fetch all teams for the edit dialog
+      ]);
 
-        // 1. Sort by whether they have a date or not (TBD last)
-        if (aHasDate && !bHasDate) return -1; 
-        if (!aHasDate && bHasDate) return 1;  
-
-        // 2. If both have dates, sort by date descending (most recent first)
-        if (aHasDate && bHasDate) {
-          const dateA = new Date(a.date!).getTime(); 
-          const dateB = new Date(b.date!).getTime(); 
-          if (dateA !== dateB) {
-            return dateB - dateA;
+      if (matchesResult.error || !matchesResult.matches) {
+        setError(matchesResult.error || "No se pudieron cargar los partidos.");
+        toast({
+          title: "Error al Cargar Partidos",
+          description: matchesResult.error || "No se pudieron cargar los partidos.",
+          variant: "destructive",
+        });
+        setAllMatches([]);
+      } else {
+        const sortedMatches = matchesResult.matches.sort((a, b) => {
+          const aHasDate = !!a.date;
+          const bHasDate = !!b.date;
+          if (aHasDate && !bHasDate) return -1;
+          if (!aHasDate && bHasDate) return 1;
+          if (aHasDate && bHasDate) {
+            const dateA = new Date(a.date!).getTime();
+            const dateB = new Date(b.date!).getTime();
+            if (dateA !== dateB) return dateB - dateA;
           }
-        }
+          const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
+          if (groupCompare !== 0) return groupCompare;
+          return (a.matchday || 0) - (b.matchday || 0);
+        });
+        setAllMatches(sortedMatches);
+        const uniqueGroups = Array.from(new Set(sortedMatches.map(m => m.groupName).filter(Boolean) as string[])).sort();
+        setAvailableGroups(uniqueGroups);
+      }
 
-        // 3. If both are TBD (or have the same exact timestamp), sort by groupName (alphabetical)
-        const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
-        if (groupCompare !== 0) {
-          return groupCompare;
-        }
+      if (teamsResult.error || !teamsResult.teams) {
+        // Handle error for teams if necessary, e.g., disable editing
+        console.error("Error fetching teams for edit dialog:", teamsResult.error);
+        setAllTeams([]);
+         toast({
+          title: "Error al Cargar Equipos",
+          description: teamsResult.error || "No se pudieron cargar los equipos para edición.",
+          variant: "destructive",
+        });
+      } else {
+        setAllTeams(teamsResult.teams);
+      }
 
-        // 4. If groupName is also the same, sort by matchday (ascending)
-        return (a.matchday || 0) - (b.matchday || 0);
-      });
-
-      setAllMatches(sortedMatches);
-      const uniqueGroups = Array.from(new Set(sortedMatches.map(m => m.groupName).filter(Boolean) as string[])).sort();
-      setAvailableGroups(uniqueGroups);
+    } catch (err) {
+        const generalError = err instanceof Error ? err.message : "Error desconocido al cargar datos.";
+        setError(generalError);
+        toast({
+            title: "Error General",
+            description: generalError,
+            variant: "destructive",
+        });
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
   }, [toast]);
 
   useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
+    fetchMatchesAndTeams();
+  }, [fetchMatchesAndTeams]);
 
   useEffect(() => {
     if (!allMatches) {
@@ -105,12 +126,27 @@ export default function ManageMatchesPage() {
     setFilteredMatches(matches);
   }, [allMatches, selectedStatus, selectedGroup]);
 
+  const handleEditClick = (match: Match) => {
+    // Ensure the match object has string dates for the form, if they exist
+    const matchForForm = {
+        ...match,
+        date: match.date ? new Date(match.date).toISOString() : null,
+        // Firestore Timestamps for createdAt/updatedAt are already converted to strings by actions
+    };
+    setCurrentEditingMatch(matchForForm);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleMatchUpdate = () => {
+    fetchMatchesAndTeams(); // Re-fetch matches after an update
+  };
+
 
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
-        <p className="text-xl text-muted-foreground">Cargando partidos desde Firestore...</p>
+        <p className="text-xl text-muted-foreground">Cargando datos desde Firestore...</p>
       </div>
     );
   }
@@ -119,9 +155,9 @@ export default function ManageMatchesPage() {
      return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <p className="text-xl text-destructive font-semibold">Error al Cargar Partidos</p>
+        <p className="text-xl text-destructive font-semibold">Error al Cargar Datos</p>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={fetchMatches}>Reintentar</Button>
+        <Button onClick={fetchMatchesAndTeams}>Reintentar</Button>
       </div>
     );
   }
@@ -132,7 +168,7 @@ export default function ManageMatchesPage() {
         <div className="flex justify-between items-center">
           <SectionTitle>Gestionar Partidos</SectionTitle>
           <Button asChild className="opacity-50 pointer-events-none" title="Próximamente: Añadir Partido Manual">
-            <Link href="/admin/matches/add">
+            <Link href="/admin/matches/add"> {/* This link would be for a separate add page, not a modal currently */}
               <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Partido
             </Link>
           </Button>
@@ -161,13 +197,12 @@ export default function ManageMatchesPage() {
       <div className="flex justify-between items-center">
         <SectionTitle>Gestionar Partidos</SectionTitle>
         <Button asChild className="opacity-50 pointer-events-none" title="Próximamente: Añadir Partido Manual">
-          <Link href="/admin/matches/add">
+          <Link href="#"> {/* Disabled add button functionality for now */}
             <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nuevo Partido
           </Link>
         </Button>
       </div>
 
-      {/* Filters Section */}
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -176,7 +211,6 @@ export default function ManageMatchesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Status Filter */}
           <div>
             <label className="text-sm font-medium text-muted-foreground mb-2 block">Filtrar por Estado:</label>
             <Tabs defaultValue="all" onValueChange={(value) => setSelectedStatus(value as MatchStatus | 'all')}>
@@ -189,7 +223,6 @@ export default function ManageMatchesPage() {
             </Tabs>
           </div>
 
-          {/* Group Filter */}
           {availableGroups.length > 0 && (
             <div>
               <label className="text-sm font-medium text-muted-foreground mb-2 block">Filtrar por Grupo/Zona:</label>
@@ -269,10 +302,8 @@ export default function ManageMatchesPage() {
                       {match.matchday && ` (F${match.matchday})`}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/matches/edit/${match.id}`}>
-                          <Edit className="mr-1 h-4 w-4" /> Editar
-                        </Link>
+                      <Button variant="outline" size="sm" onClick={() => handleEditClick(match)}>
+                        <Edit className="mr-1 h-4 w-4" /> Editar
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -287,10 +318,20 @@ export default function ManageMatchesPage() {
           )}
         </CardContent>
       </Card>
+      
+      {currentEditingMatch && (
+        <EditMatchDialog
+          isOpen={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+          match={currentEditingMatch}
+          allTeams={allTeams}
+          onMatchUpdate={handleMatchUpdate}
+        />
+      )}
+
       <p className="text-sm text-muted-foreground italic mt-6">
         Los partidos son generados desde la fase de grupos. La funcionalidad de "Añadir Nuevo Partido" manual está pendiente.
       </p>
     </div>
   );
 }
-
