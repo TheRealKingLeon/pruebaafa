@@ -18,6 +18,10 @@ const clubs = [
   { id: 'velez', name: 'Vélez Sarsfield', logo: 'football team' },
   { id: 'estudiantes', name: 'Estudiantes LP', logo: 'football team' },
   { id: 'lanus', name: 'Lanús', logo: 'football team' },
+  { id: 'huracan', name: 'Huracán', logo: 'football team' },
+  { id: 'gimnasia', name: 'Gimnasia LP', logo: 'football team' },
+  { id: 'rosariocentral', name: 'Rosario Central', logo: 'football team' },
+  { id: 'newells', name: "Newell's Old Boys", logo: 'football team' },
 ];
 
 export const mockTeams: Team[] = clubs.map((club, index) => {
@@ -41,11 +45,33 @@ export const mockGroups: Group[] = [
     name: 'Grupo B',
     teams: mockTeams.slice(4, 8),
   },
+  {
+    id: 'group-c',
+    name: 'Grupo C',
+    teams: mockTeams.slice(8, 12),
+  },
 ];
 
-const generateMatch = (id: string, team1: Team, team2: Team, groupName: string, status: 'completed' | 'upcoming', dateOffset: number): Match => {
+const generateMatch = (
+  id: string, 
+  team1: Team, 
+  team2: Team, 
+  groupName: string, 
+  status: 'completed' | 'upcoming' | 'live', 
+  dateOffset: number,
+  matchday: number,
+  roundName?: string
+): Match => {
   const matchDate = new Date();
   matchDate.setDate(matchDate.getDate() + dateOffset);
+  // For live matches, set time to be very recent or current
+  if (status === 'live') {
+    matchDate.setHours(new Date().getHours(), new Date().getMinutes() - 15); // e.g., started 15 mins ago
+  } else if (status === 'upcoming') {
+    matchDate.setHours(matchDate.getHours() + Math.floor(Math.random() * 3) + 1, Math.random() > 0.5 ? 30 : 0); // Random time in the next few hours
+  }
+
+
   return {
     id: `match-${id}`,
     team1,
@@ -54,19 +80,36 @@ const generateMatch = (id: string, team1: Team, team2: Team, groupName: string, 
     score2: status === 'completed' ? Math.floor(Math.random() * 5) : undefined,
     date: matchDate.toISOString(),
     status,
-    groupName,
+    groupName: groupName || undefined,
+    matchday,
+    roundName: roundName || undefined,
   };
 };
 
 export const mockMatches: Match[] = [
-  generateMatch('1', mockTeams[0], mockTeams[1], 'Grupo A', 'completed', -2),
-  generateMatch('2', mockTeams[2], mockTeams[3], 'Grupo A', 'completed', -1),
-  generateMatch('3', mockTeams[0], mockTeams[2], 'Grupo A', 'upcoming', 1),
-  generateMatch('4', mockTeams[1], mockTeams[3], 'Grupo A', 'upcoming', 2),
-  generateMatch('5', mockTeams[4], mockTeams[5], 'Grupo B', 'completed', -2),
-  generateMatch('6', mockTeams[6], mockTeams[7], 'Grupo B', 'completed', -1),
-  generateMatch('7', mockTeams[4], mockTeams[6], 'Grupo B', 'upcoming', 1),
-  generateMatch('8', mockTeams[5], mockTeams[7], 'Grupo B', 'upcoming', 2),
+  // Grupo A
+  generateMatch('1', mockTeams[0], mockTeams[1], 'Grupo A', 'completed', -2, 1),
+  generateMatch('2', mockTeams[2], mockTeams[3], 'Grupo A', 'completed', -1, 1),
+  generateMatch('3', mockTeams[0], mockTeams[2], 'Grupo A', 'live', 0, 2), // Live match
+  generateMatch('4', mockTeams[1], mockTeams[3], 'Grupo A', 'upcoming', 1, 2),
+  generateMatch('13', mockTeams[0], mockTeams[3], 'Grupo A', 'upcoming', 2, 3),
+  generateMatch('14', mockTeams[1], mockTeams[2], 'Grupo A', 'upcoming', 2, 3),
+
+  // Grupo B
+  generateMatch('5', mockTeams[4], mockTeams[5], 'Grupo B', 'completed', -2, 1),
+  generateMatch('6', mockTeams[6], mockTeams[7], 'Grupo B', 'completed', -1, 1),
+  generateMatch('7', mockTeams[4], mockTeams[6], 'Grupo B', 'upcoming', 0, 2), 
+  generateMatch('8', mockTeams[5], mockTeams[7], 'Grupo B', 'upcoming', 1, 2),
+  generateMatch('15', mockTeams[4], mockTeams[7], 'Grupo B', 'upcoming', 3, 3),
+  generateMatch('16', mockTeams[5], mockTeams[6], 'Grupo B', 'upcoming', 3, 3),
+  
+  // Grupo C
+  generateMatch('9', mockTeams[8], mockTeams[9], 'Grupo C', 'live', 0, 1), // Live match
+  generateMatch('10', mockTeams[10], mockTeams[11], 'Grupo C', 'upcoming', 0, 1),
+  generateMatch('11', mockTeams[8], mockTeams[10], 'Grupo C', 'upcoming', 1, 2),
+  generateMatch('12', mockTeams[9], mockTeams[11], 'Grupo C', 'upcoming', 1, 2),
+  generateMatch('17', mockTeams[8], mockTeams[11], 'Grupo C', 'upcoming', 4, 3),
+  generateMatch('18', mockTeams[9], mockTeams[10], 'Grupo C', 'upcoming', 4, 3),
 ];
 
 
@@ -75,10 +118,10 @@ export const mockPlayoffRounds: PlayoffRound[] = [
     id: 'quarterfinals',
     name: 'Cuartos de Final',
     matches: [
-      generateMatch('p1', mockTeams[0], mockTeams[3], '', 'upcoming', 5),
-      generateMatch('p2', mockTeams[1], mockTeams[2], '', 'upcoming', 5),
-      generateMatch('p3', mockTeams[4], mockTeams[7], '', 'upcoming', 6),
-      generateMatch('p4', mockTeams[5], mockTeams[6], '', 'upcoming', 6),
+      generateMatch('p1', mockTeams[0], mockTeams[3], '', 'upcoming', 5, 1, 'Cuartos de Final'),
+      generateMatch('p2', mockTeams[1], mockTeams[2], '', 'upcoming', 5, 1, 'Cuartos de Final'),
+      generateMatch('p3', mockTeams[4], mockTeams[7], '', 'upcoming', 6, 1, 'Cuartos de Final'),
+      generateMatch('p4', mockTeams[5], mockTeams[6], '', 'upcoming', 6, 1, 'Cuartos de Final'),
     ],
   },
   {

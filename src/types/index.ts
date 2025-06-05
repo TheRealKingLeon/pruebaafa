@@ -30,6 +30,7 @@ export interface Match {
   status: 'upcoming' | 'live' | 'completed';
   groupName?: string; 
   roundName?: string; 
+  matchday?: number; // Added matchday
 }
 
 export interface PlayoffRound {
