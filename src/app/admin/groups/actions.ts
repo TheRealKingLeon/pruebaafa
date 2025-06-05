@@ -1,8 +1,7 @@
-
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, runTransaction, where, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, serverTimestamp, query, orderBy, getDoc, Timestamp, runTransaction, where, deleteDoc, documentId } from 'firebase/firestore';
 import type { Group, Team, Match as MatchType, TournamentRules } from '@/types';
 import { loadTournamentRulesAction, updateGroupSeedStatusAction } from '../tournament-settings/actions';
 
@@ -185,11 +184,16 @@ export async function resetAndClearGroupsAction(): Promise<{ success: boolean; m
     }
 
     // Clear existing group stage matches from 'matches' collection
-    const matchesQuery = query(collection(db, MATCHES_COLLECTION), where("roundName", "==", undefined)); // Assuming group matches don't have roundName
+    const matchesQuery = query(collection(db, MATCHES_COLLECTION), where("groupId", "!=", null)); // Get all matches with a groupId
     const matchesSnapshot = await getDocs(matchesQuery);
+    let deletedGroupMatchesCount = 0;
     matchesSnapshot.forEach(matchDoc => {
-      batch.delete(matchDoc.ref);
+      if (!matchDoc.data().roundName) { // Further filter: only delete if it's a group match (no roundName)
+        batch.delete(matchDoc.ref);
+        deletedGroupMatchesCount++;
+      }
     });
+    console.log(`[Reset Action] Deleted ${deletedGroupMatchesCount} group stage matches from 'matches' collection.`);
     
     await batch.commit();
     
@@ -368,21 +372,30 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
 
     // 1. Clear existing group stage matches
     const matchesCollectionRef = collection(db, MATCHES_COLLECTION);
-    // A simple way to identify group stage matches is if they have a groupId and no roundName
-    const oldMatchesQuery = query(matchesCollectionRef, where("groupId", "!=", null), where("roundName", "==", null));
+    const oldMatchesQuery = query(matchesCollectionRef, where("groupId", "!=", null)); // Get all matches with a groupId
     const oldMatchesSnapshot = await getDocs(oldMatchesQuery);
-    oldMatchesSnapshot.forEach(doc => batch.delete(doc.ref));
-    console.log(`[Seed Action] Cleared ${oldMatchesSnapshot.size} old group stage matches.`);
+    
+    let clearedMatchesCount = 0;
+    oldMatchesSnapshot.forEach(matchDoc => {
+        // Further filter: only delete if it's a group match (no roundName)
+        if (!matchDoc.data().roundName) { 
+            batch.delete(matchDoc.ref);
+            clearedMatchesCount++;
+        }
+    });
+    if (clearedMatchesCount > 0) {
+        console.log(`[Seed Action] Cleared ${clearedMatchesCount} old group stage matches from 'matches' collection.`);
+    }
 
 
-    const MINIMUM_ZONES_TO_SEED = 2; // As per client-side logic for enabling the button
+    const MINIMUM_ZONES_TO_SEED = 2; 
     const completedGroups = allGroups.filter(g => g.teamIds.length === TEAMS_PER_ZONE);
     
     if (completedGroups.length < MINIMUM_ZONES_TO_SEED) {
         return { success: false, message: `Se requieren al menos ${MINIMUM_ZONES_TO_SEED} zonas completas (${TEAMS_PER_ZONE} equipos c/u) para iniciar el seed. Actualmente hay ${completedGroups.length}.`};
     }
 
-    for (const group of completedGroups) { // Process only completed groups
+    for (const group of completedGroups) { 
       if (group.teamIds.length !== TEAMS_PER_ZONE) {
         console.log(`[Seed Action] Skipping group ${group.name} (ID: ${group.id}) as it does not have ${TEAMS_PER_ZONE} teams.`);
         continue;
@@ -395,7 +408,7 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
         const newMatch: Omit<MatchType, 'id' | 'team1' | 'team2'> = {
           team1Id: fixture.team1Id,
           team2Id: fixture.team2Id,
-          date: null, // To be set by admin
+          date: null, 
           status: 'pending_date',
           groupId: group.id,
           groupName: group.name,
@@ -420,9 +433,6 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
     // 2. Mark groups as seeded in tournament_config
     const configUpdateResult = await updateGroupSeedStatusAction(true);
     if (!configUpdateResult.success) {
-        // Note: Matches might have been added to batch but not committed.
-        // Transactional approach would be better here but more complex.
-        // For now, we proceed and log error.
         return { success: false, message: `Partidos generados (${totalMatchesGenerated}), pero falló al marcar los grupos como semeados: ${configUpdateResult.message}` };
     }
     
@@ -436,3 +446,31 @@ export async function seedGroupStageMatchesAction(): Promise<{ success: boolean;
   }
 }
 
+
+export async function getTeamsDetailsByIdsAction(teamIds: string[]): Promise<{ teams: Team[], error?: string }> {
+  const teams: Team[] = [];
+  if (!teamIds || teamIds.length === 0) {
+    return { teams };
+  }
+
+  try {
+    const uniqueTeamIds = Array.from(new Set(teamIds));
+    const MAX_IDS_PER_QUERY = 30; 
+
+    for (let i = 0; i < uniqueTeamIds.length; i += MAX_IDS_PER_QUERY) {
+      const chunk = uniqueTeamIds.slice(i, i + MAX_IDS_PER_QUERY);
+      if (chunk.length > 0) {
+        const teamsQuery = query(collection(db, "equipos"), where(documentId(), "in", chunk));
+        const snapshot = await getDocs(teamsQuery);
+        snapshot.docs.forEach(docSnap => {
+          teams.push({ id: docSnap.id, ...docSnap.data() } as Team);
+        });
+      }
+    }
+    return { teams };
+  } catch (error) {
+    console.error("Error fetching teams by IDs:", error);
+    const message = error instanceof Error ? error.message : "Error desconocido al obtener equipos por IDs.";
+    return { teams: [], error: message };
+  }
+}
