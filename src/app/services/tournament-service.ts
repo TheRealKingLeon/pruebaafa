@@ -13,6 +13,7 @@ import type {
   TournamentRules,
 } from '@/types';
 import { loadTournamentRulesAction } from '../admin/tournament-settings/actions';
+import { getPlayoffFixturesAction } from '../admin/playoffs/actions'; // Import the centralized action
 
 // Helper to fetch team details in bulk
 async function getTeamsDetailsMap(teamIds: string[]): Promise<Map<string, Team>> {
@@ -227,39 +228,19 @@ export async function getTournamentCompetitionData(): Promise<{
       });
     }
 
-    const playoffQuery = query(collection(db, "playoff_fixtures"), orderBy("createdAt"));
-    const playoffSnapshot = await getDocs(playoffQuery);
-    const rawPlayoffFixtures = playoffSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-      } as PlayoffFixture;
-    });
+    // Fetch playoff fixtures using the centralized action
+    const playoffResult = await getPlayoffFixturesAction();
+    let resolvedPlayoffFixtures: PlayoffFixture[] = [];
 
-    const playoffTeamIds = new Set<string>();
-    rawPlayoffFixtures.forEach(pf => {
-      if (pf.team1Id) playoffTeamIds.add(pf.team1Id);
-      if (pf.team2Id) playoffTeamIds.add(pf.team2Id);
-    });
-    const playoffTeamsMap = await getTeamsDetailsMap(Array.from(playoffTeamIds));
+    if (playoffResult.error) {
+        console.warn("Error fetching playoff fixtures for getTournamentCompetitionData. Error:", playoffResult.error);
+        // Optionally, you could pass this error up or decide how to handle it.
+        // For now, competition page will show empty playoffs if this fails.
+    } else {
+        resolvedPlayoffFixtures = playoffResult.fixtures; // The action already enriches with team names/logos
+    }
 
-
-    const playoffFixtures = rawPlayoffFixtures.map(pf => {
-      const team1 = pf.team1Id ? playoffTeamsMap.get(pf.team1Id) : undefined;
-      const team2 = pf.team2Id ? playoffTeamsMap.get(pf.team2Id) : undefined;
-      return {
-        ...pf, 
-        team1Name: team1?.name,
-        team1LogoUrl: team1?.logoUrl,
-        team2Name: team2?.name,
-        team2LogoUrl: team2?.logoUrl,
-      };
-    });
-
-    return { groupsWithStandings, playoffFixtures };
+    return { groupsWithStandings, playoffFixtures: resolvedPlayoffFixtures };
 
   } catch (error) {
     console.error("Error fetching tournament competition data:", error);
@@ -301,6 +282,7 @@ export async function getTournamentHomePageData(): Promise<{
     const upcomingQuery = query(
       collection(db, "matches"),
       where("status", "==", "upcoming"),
+      // No date filter here, sort and filter client-side or after fetching if needed
       limit(20) 
     );
     
@@ -321,40 +303,49 @@ export async function getTournamentHomePageData(): Promise<{
     const pendingDateSnapshot = promiseResults[2].docs;
     
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    // Sorting for live matches by date (if available)
     rawLiveMatches.sort((a, b) => { 
       if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-      if (a.date) return -1;
+      if (a.date) return -1; // Matches with dates first
       if (b.date) return 1;
-      return 0;
+      return 0; // Keep original order if no dates
     });
 
+    // Filter upcoming matches to ensure they are truly in the future, then sort by date
     let rawUpcomingMatches = rawUpcomingMatchesDocs
         .map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }))
-        .filter(match => match.date && new Date(match.date as string) >= now);
+        .filter(match => match.date && new Date(match.date as string) >= now); // Filter for future dates
 
-    rawUpcomingMatches.sort((a, b) => { 
+    rawUpcomingMatches.sort((a, b) => { // Sort valid upcoming matches by date
         if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-        if (a.date) return -1;
+        // Should not happen due to filter, but good practice
+        if (a.date) return -1; 
         if (b.date) return 1;
         return 0;
     });
 
     const rawPendingDateMatches = pendingDateSnapshot.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    // Sorting for pending_date matches: by groupName, then matchday
     rawPendingDateMatches.sort((a, b) => { 
         const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
         if (groupCompare !== 0) return groupCompare;
         return (a.matchday || 0) - (b.matchday || 0);
     });
 
+    // Combine matches: live first, then upcoming (future dated), then pending_date
+    // Use a Map to avoid duplicates if a match somehow appeared in multiple queries (unlikely with current logic)
     const matchesMap = new Map<string, ReturnType<typeof convertMatchTimestamps>>();
+    
     rawLiveMatches.forEach(m => matchesMap.set(m.id, m));
-    rawUpcomingMatches.forEach(m => {
+    rawUpcomingMatches.forEach(m => { // These are already future-dated and sorted
         if (!matchesMap.has(m.id)) matchesMap.set(m.id, m);
     });
-    rawPendingDateMatches.forEach(m => {
+    rawPendingDateMatches.forEach(m => { // These are sorted by group/matchday
       if (!matchesMap.has(m.id)) matchesMap.set(m.id, m);
     });
 
+    // The order of insertion into the map and then spreading preserves a general priority
+    // To achieve specific multi-level sort for carousel: live > upcoming > pending_date, then group, then matchday
     let combinedMatches = Array.from(matchesMap.values());
 
     const getStatusPriority = (status: Match['status']): number => {
@@ -362,7 +353,7 @@ export async function getTournamentHomePageData(): Promise<{
         case 'live': return 1;
         case 'upcoming': return 2;
         case 'pending_date': return 3;
-        case 'completed': return 4;
+        case 'completed': return 4; // Should not be in this list
         default: return 5;
       }
     };
@@ -375,23 +366,30 @@ export async function getTournamentHomePageData(): Promise<{
         return priorityA - priorityB;
       }
 
-      if (a.status === 'live' || a.status === 'upcoming') {
-        if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-        if (a.date) return -1;
-        if (b.date) return 1;
-      }
-
-      if (a.status === 'pending_date' && b.status === 'pending_date') {
-         const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
-         if (groupCompare !== 0) return groupCompare;
-         return (a.matchday || 0) - (b.matchday || 0);
+      // For 'live' and 'upcoming', sort by actual date if available
+      if ((a.status === 'live' || a.status === 'upcoming') && (b.status === 'live' || b.status === 'upcoming')) {
+        if (a.date && b.date) {
+            const dateComparison = new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+            if (dateComparison !== 0) return dateComparison;
+        } else if (a.date) {
+            return -1; // a has date, b doesn't
+        } else if (b.date) {
+            return 1;  // b has date, a doesn't
+        }
+        // If dates are same or both null, fall through to group/matchday
       }
       
-      return 0; 
+      // Fallback/secondary sort: groupName then matchday
+      const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
+      if (groupCompare !== 0) return groupCompare;
+      
+      return (a.matchday || 0) - (b.matchday || 0);
     });
     
+    // Limit the total number of matches for the carousel
     const limitedMatches = combinedMatches.slice(0, 10);
 
+    // Populate team details for the selected matches
     const matchTeamIds = new Set<string>();
     limitedMatches.forEach(m => {
       if (m.team1Id) matchTeamIds.add(m.team1Id);
@@ -403,21 +401,18 @@ export async function getTournamentHomePageData(): Promise<{
       ...m, 
       team1: m.team1Id ? teamsMapForMatches.get(m.team1Id) : undefined,
       team2: m.team2Id ? teamsMapForMatches.get(m.team2Id) : undefined,
-    })).filter(m => m.team1 && m.team2) as Match[];
+    })).filter(m => m.team1 && m.team2) as Match[]; // Ensure both teams are populated
 
 
     // For the home page, we call getTournamentCompetitionData to get groups with standings
-    // but we only need the groups part, not playoffs.
-    // We need to handle its potential error too.
-    const competitionData = await getTournamentCompetitionData();
-    if (competitionData.error && !competitionData.groupsWithStandings.length) { // if error and no groups, pass it up
-        console.warn("Error fetching groups for home page via getTournamentCompetitionData. Error:", competitionData.error);
-        return { upcomingLiveMatches, groupsWithStandings: [], error: competitionData.error};
+    const competitionDataResult = await getTournamentCompetitionData();
+    if (competitionDataResult.error && !competitionDataResult.groupsWithStandings.length) { 
+        console.warn("Error fetching groups for home page via getTournamentCompetitionData. Error:", competitionDataResult.error);
+        // If competitionData also had an error getting groups, reflect that
+        return { upcomingLiveMatches, groupsWithStandings: [], error: competitionDataResult.error};
     }
-    // If there was an error but some groups were fetched (e.g. playoff part failed), use what we have for groups.
-    // If no error, all good.
     
-    return { upcomingLiveMatches, groupsWithStandings: competitionData.groupsWithStandings };
+    return { upcomingLiveMatches, groupsWithStandings: competitionDataResult.groupsWithStandings };
 
   } catch (error) {
     console.error("Error fetching tournament home page data:", error);
