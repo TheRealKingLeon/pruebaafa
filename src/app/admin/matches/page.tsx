@@ -227,7 +227,7 @@ export default function ManageMatchesPage() {
             <div>
               <label className="text-sm font-medium text-muted-foreground mb-2 block">Filtrar por Grupo/Zona:</label>
               <Tabs defaultValue="all" onValueChange={(value) => setSelectedGroup(value as string)}>
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-1">
+                <TabsList className="flex flex-wrap w-full gap-1">
                   <TabsTrigger value="all">Todos</TabsTrigger>
                   {availableGroups.map(groupName => (
                     <TabsTrigger key={groupName} value={groupName} className="truncate">{groupName}</TabsTrigger>
