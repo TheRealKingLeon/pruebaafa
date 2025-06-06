@@ -9,30 +9,27 @@ import type { Team, Player } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, AlertTriangle, Users } from 'lucide-react'; // Button removed from here
-import { Button } from '@/components/ui/button'; // Correct import for Button
+import { Search, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp
+import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface TeamWithPlayer extends Team {
-  player?: Player; // Player is optional as a club might not have one assigned yet
+  player?: Player;
 }
 
-// Helper to convert Firestore Timestamps in a single Team object
 function convertTeamDocToTeamObject(doc: import('firebase/firestore').DocumentSnapshot | import('firebase/firestore').QueryDocumentSnapshot): Team {
   const data = doc.data()!;
   return {
     id: doc.id,
     name: data.name,
     logoUrl: data.logoUrl,
-    // player field is not directly on team doc, will be merged later
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
   } as Team;
 }
 
-// Helper to convert Firestore Timestamps in a single Player object
 function convertPlayerDocToPlayerObject(doc: import('firebase/firestore').DocumentSnapshot | import('firebase/firestore').QueryDocumentSnapshot): Player {
   const data = doc.data()!;
   return {
@@ -78,20 +75,18 @@ export default function ParticipantsPage() {
       const jugadoresMap = new Map(jugadoresData.map(jugador => [jugador.clubId, jugador]));
 
       const teamsWithPlayerData = equiposData.map(equipo => {
-        const player = jugadoresMap.get(equipo.id); // clubId in player doc is the equipo.id
+        const player = jugadoresMap.get(equipo.id);
         return {
-          ...equipo, // equipo already has converted timestamps
-          player: player || undefined, // player already has converted timestamps
+          ...equipo,
+          player: player || undefined,
         };
       });
 
       setAllTeamsWithPlayers(teamsWithPlayerData);
-      setFilteredTeams(teamsWithPlayerData); // Initialize filtered list
+      setFilteredTeams(teamsWithPlayerData);
       if (teamsWithPlayerData.length > 0 && teamsWithPlayerData[0].player) {
-        // Pre-select the first team's player if available
         handleSelectTeam(teamsWithPlayerData[0]);
       } else if (teamsWithPlayerData.length > 0) {
-        // Pre-select first team even if no player, PlayerDetailCard handles null player
          handleSelectTeam(teamsWithPlayerData[0]);
       }
 
@@ -125,7 +120,7 @@ export default function ParticipantsPage() {
   }, [searchTerm, allTeamsWithPlayers]);
 
   const handleSelectTeam = (team: TeamWithPlayer) => {
-    setSelectedPlayer(team.player || null); // Pass null if player is undefined
+    setSelectedPlayer(team.player || null);
     setSelectedClubName(team.name);
     setSelectedClubLogo(team.logoUrl);
   };
@@ -169,11 +164,11 @@ export default function ParticipantsPage() {
         />
       </div>
 
-      <div className="grid md:grid-cols-5 gap-8 items-start"> {/* Changed from md:grid-cols-3 */}
-        <div className="md:col-span-2"> {/* Changed from md:col-span-1 */}
-          <Card className="shadow-lg sticky top-20">
+      <div className="flex flex-col md:grid md:grid-cols-5 md:gap-8 md:items-start">
+        <div className="md:col-span-2 mb-8 md:mb-0">
+          <Card className="shadow-lg"> {/* Removed sticky top-20 from here */}
             <CardContent className="p-0">
-              <ScrollArea className="h-[50vh] min-h-[300px] md:h-[calc(100vh-12rem)] md:min-h-[400px] rounded-md"> {/* Adjusted height */}
+              <ScrollArea className="h-80 sm:h-96 md:h-[calc(100vh-12rem)] rounded-md"> {/* Adjusted height */}
                 {filteredTeams.length > 0 ? (
                   <ul className="p-2 sm:p-4 space-y-1 sm:space-y-2">
                     {filteredTeams.map((team: TeamWithPlayer) => (
@@ -229,7 +224,7 @@ export default function ParticipantsPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-3"> {/* Changed from md:col-span-2 */}
+        <div className="md:col-span-3">
           <PlayerDetailCard player={selectedPlayer} clubName={selectedClubName} clubLogoUrl={selectedClubLogo} />
         </div>
       </div>
