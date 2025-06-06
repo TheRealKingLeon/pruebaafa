@@ -18,7 +18,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import type { Match, StandingEntry, Group as GroupType } from '@/types'; 
+import type { Match, StandingEntry, Group as GroupType } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
@@ -63,9 +63,9 @@ export default function HomePage() {
     setCurrentTimeForInterval(new Date().toISOString());
     const interval = setInterval(() => {
         setCurrentTimeForInterval(new Date().toISOString());
-    }, 60000); 
+    }, 60000);
     return () => clearInterval(interval);
-  }, [fetchData]); 
+  }, [fetchData]);
 
   const displayableGroups = groupsWithStandings?.filter(g => g.standings && g.standings.length > 0) || [];
   const defaultGroupId = displayableGroups.length > 0 ? displayableGroups[0].id : 'no-groups';
@@ -79,7 +79,7 @@ export default function HomePage() {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
@@ -100,7 +100,7 @@ export default function HomePage() {
           <Carousel
             opts={{
               align: "start",
-              loop: upcomingLiveMatches.length > 5, 
+              loop: upcomingLiveMatches.length > 5,
             }}
             className="w-full"
           >
@@ -115,7 +115,7 @@ export default function HomePage() {
                             {match.groupName || match.roundName} {match.matchday && `- Fecha ${match.matchday}`}
                           </p>
                         )}
-                        
+
                         <div className="flex items-center justify-between space-x-2">
                           <div className="flex flex-col items-center text-center w-2/5">
                             <Image
@@ -158,7 +158,7 @@ export default function HomePage() {
                               </div>
                           </div>
                         )}
-                        
+
                         <Badge
                           variant={match.status === 'live' ? 'destructive' : (match.status === 'upcoming' ? 'secondary' : 'default')}
                           className="mt-1 text-[9px] px-1.5 py-0.5 font-bold w-full justify-center"
@@ -201,7 +201,7 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          
+
           {displayableGroups.length > 0 ? (
             <div className="rounded-lg shadow-lg bg-card text-card-foreground overflow-hidden">
               <CardHeader className="bg-muted/50 p-4 border-b border-border">
@@ -214,12 +214,12 @@ export default function HomePage() {
                 <Tabs defaultValue={defaultGroupId} className="w-full">
                   <TabsList className="flex flex-wrap w-full gap-1 rounded-none border-b border-border bg-muted/30 p-1">
                     {displayableGroups.map((group: GroupType) => (
-                      <TabsTrigger 
-                        key={group.id} 
+                      <TabsTrigger
+                        key={group.id}
                         value={group.id}
-                        className="text-xs sm:text-sm py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                        className="text-xs sm:text-sm px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                       >
-                        {group.name} 
+                        {group.name}
                       </TabsTrigger>
                     ))}
                   </TabsList>
@@ -247,11 +247,11 @@ export default function HomePage() {
                                 <TableCell className="px-2 py-4 text-center font-medium">{entry.position}</TableCell>
                                 <TableCell className="px-2 py-4">
                                   <div className="flex items-center gap-2">
-                                    <Image 
-                                      src={entry.team.logoUrl || "https://placehold.co/32x32.png?text=?"} 
-                                      alt={`${entry.team.name} logo`} 
-                                      width={20} 
-                                      height={20} 
+                                    <Image
+                                      src={entry.team.logoUrl || "https://placehold.co/32x32.png?text=?"}
+                                      alt={`${entry.team.name} logo`}
+                                      width={20}
+                                      height={20}
                                       className="object-contain"
                                       data-ai-hint={entry.team.name.toLowerCase().includes("river") || entry.team.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
                                     />

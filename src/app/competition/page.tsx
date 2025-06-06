@@ -63,7 +63,7 @@ export default function CompetitionPage() {
 
   const displayableGroupsForStandings = groupsWithStandings?.filter(g => g.standings && g.standings.length > 0) || [];
   const defaultGroupStageZoneId = displayableGroupsForStandings.length > 0 ? displayableGroupsForStandings[0].id : 'no-group-zones';
-  
+
   const displayableZonesForPlayoffs = groupsWithStandings?.filter(g => g.zoneId && allPlayoffFixtures?.some(f => f.zoneId === g.zoneId)).map(g => ({id: g.id, name: g.name, zoneId: g.zoneId})) || [];
   const defaultPlayoffZoneId = displayableZonesForPlayoffs.length > 0 ? displayableZonesForPlayoffs[0].zoneId : 'no-playoff-zones';
 
@@ -87,7 +87,7 @@ export default function CompetitionPage() {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-288px)] text-center p-4">
@@ -118,15 +118,15 @@ export default function CompetitionPage() {
           <p className="mb-6 text-muted-foreground">
             Tablas de posiciones actualizadas.
           </p>
-          
+
           {displayableGroupsForStandings.length > 0 ? (
             <Tabs defaultValue={defaultGroupStageZoneId} className="w-full">
               <TabsList className="flex flex-wrap w-full gap-1 rounded-md border-border bg-muted/30 mb-6 p-1">
                 {displayableGroupsForStandings.map((group: Group) => (
-                  <TabsTrigger 
-                    key={group.id} 
+                  <TabsTrigger
+                    key={group.id}
                     value={group.id}
-                    className="text-xs sm:text-sm py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                    className="text-xs sm:text-sm px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                   >
                     {group.name}
                   </TabsTrigger>
@@ -164,11 +164,11 @@ export default function CompetitionPage() {
                                 <TableCell className="px-2 py-4 text-center font-medium">{entry.position}</TableCell>
                                 <TableCell className="px-2 py-4">
                                   <div className="flex items-center gap-2">
-                                    <Image 
-                                      src={entry.team.logoUrl || "https://placehold.co/32x32.png?text=?"} 
-                                      alt={`${entry.team.name} logo`} 
-                                      width={20} 
-                                      height={20} 
+                                    <Image
+                                      src={entry.team.logoUrl || "https://placehold.co/32x32.png?text=?"}
+                                      alt={`${entry.team.name} logo`}
+                                      width={20}
+                                      height={20}
                                       className="object-contain"
                                       data-ai-hint={entry.team.name.toLowerCase().includes("river") || entry.team.name.toLowerCase().includes("boca") ? "football club" : "team logo"}
                                     />
@@ -213,7 +213,7 @@ export default function CompetitionPage() {
                     <TabsTrigger
                       key={group.zoneId}
                       value={group.zoneId}
-                      className="text-xs sm:text-sm py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                      className="text-xs sm:text-sm px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                     >
                       {group.name}
                     </TabsTrigger>
@@ -243,11 +243,11 @@ export default function CompetitionPage() {
                                   roundOrder.map(roundKey => {
                                       const currentRoundFixtures = fixturesByRound[roundKey];
                                       if (!currentRoundFixtures || currentRoundFixtures.length === 0) return null;
-                                      
+
                                       return (
                                           <div key={roundKey}>
                                               <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center gap-2">
-                                                <ListChecks className="h-5 w-5 text-muted-foreground" /> 
+                                                <ListChecks className="h-5 w-5 text-muted-foreground" />
                                                 {getRoundDisplayName(roundKey)}
                                               </h3>
                                               <div className="grid md:grid-cols-2 gap-4">
