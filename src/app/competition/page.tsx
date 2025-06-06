@@ -121,12 +121,12 @@ export default function CompetitionPage() {
           
           {displayableGroupsForStandings.length > 0 ? (
             <Tabs defaultValue={defaultGroupStageZoneId} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-md border-border bg-muted/30 mb-6">
+              <TabsList className="flex flex-wrap w-full gap-1 rounded-md border-border bg-muted/30 mb-6 p-1">
                 {displayableGroupsForStandings.map((group: Group) => (
                   <TabsTrigger 
                     key={group.id} 
                     value={group.id}
-                    className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center py-3"
+                    className="text-xs sm:text-sm py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                   >
                     {group.name}
                   </TabsTrigger>
@@ -208,7 +208,7 @@ export default function CompetitionPage() {
           </p>
           {allPlayoffFixtures && allPlayoffFixtures.length > 0 && displayableZonesForPlayoffs.length > 0 ? (
             <Tabs defaultValue={defaultPlayoffZoneId} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 mb-6 rounded-md border bg-muted/30 p-1">
+              <TabsList className="flex flex-wrap w-full gap-1 mb-6 rounded-md border bg-muted/30 p-1">
                   {displayableZonesForPlayoffs.map((group) => (
                     <TabsTrigger
                       key={group.zoneId}

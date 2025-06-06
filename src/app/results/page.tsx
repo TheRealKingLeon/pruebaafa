@@ -124,7 +124,7 @@ export default function ResultsPage() {
                   Selecciona una Zona
                 </h3>
                   <Tabs defaultValue={defaultCompletedZoneIdForGroupSelection} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                    <TabsList className="flex flex-wrap w-full gap-2 mb-4">
                       {groupsWithCompletedMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-completed-group-trigger`} value={`${group.id}-completed`} className="text-xs sm:text-sm py-2">
                           {group.name}
@@ -148,7 +148,7 @@ export default function ResultsPage() {
                                 Selecciona una Fecha
                               </h4>
                               <Tabs defaultValue={defaultMatchdayTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-6">
+                                <TabsList className="flex flex-wrap w-full gap-2 mb-6">
                                   <TabsTrigger value={`all-matchdays-${group.id}-completed`} className="text-xs py-1.5">Todas</TabsTrigger>
                                   {uniqueMatchdays.map(matchday => (
                                     <TabsTrigger key={`matchday-${matchday}-${group.id}-completed-trigger`} value={`matchday-${matchday}-${group.id}-completed`} className="text-xs py-1.5">
@@ -217,7 +217,7 @@ export default function ResultsPage() {
                   Selecciona una Zona
                 </h3>
                   <Tabs defaultValue={defaultUpcomingZoneId} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                    <TabsList className="flex flex-wrap w-full gap-2 mb-4">
                       {groupsWithUpcomingMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-upcoming-trigger`} value={group.id} className="text-xs sm:text-sm py-2">
                           {group.name}

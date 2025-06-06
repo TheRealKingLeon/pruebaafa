@@ -212,12 +212,12 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="p-0">
                 <Tabs defaultValue={defaultGroupId} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 rounded-none border-b border-border bg-muted/30">
+                  <TabsList className="flex flex-wrap w-full gap-1 rounded-none border-b border-border bg-muted/30 p-1">
                     {displayableGroups.map((group: GroupType) => (
                       <TabsTrigger 
                         key={group.id} 
                         value={group.id}
-                        className="text-xs sm:text-sm rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none focus-visible:ring-offset-0 focus-visible:ring-primary text-center py-3"
+                        className="text-xs sm:text-sm py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                       >
                         {group.name} 
                       </TabsTrigger>

@@ -18,12 +18,13 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 flex flex-col">
       {/* Full-width Image Banner */}
-      <div className="relative h-[200px] w-full group">
+      <div className="relative h-[150px] md:h-[200px] w-full group">
         <Image
           src="https://media.discordapp.net/attachments/495662170743242752/1379967831705124884/KGxN1S2rnpwAAAAASUVORK5CYII.png?ex=68422ab1&is=6840d931&hm=088d3adace3baa475d893201620c0ad2cfc82b06ab33ffef9a6b62694579ffcf&=&format=webp&quality=lossless"
           alt="AFA eSports Tournament Banner"
           layout="fill"
           objectFit="cover"
+          objectPosition="center"
           priority
           data-ai-hint="esports league banner dark"
         />

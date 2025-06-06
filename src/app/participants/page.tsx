@@ -173,7 +173,7 @@ export default function ParticipantsPage() {
         <div className="md:col-span-2"> {/* Changed from md:col-span-1 */}
           <Card className="shadow-lg sticky top-20">
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-20rem)] min-h-[400px] rounded-md"> {/* Adjusted height */}
+              <ScrollArea className="h-[50vh] min-h-[300px] md:h-[calc(100vh-12rem)] md:min-h-[400px] rounded-md"> {/* Adjusted height */}
                 {filteredTeams.length > 0 ? (
                   <ul className="p-2 sm:p-4 space-y-1 sm:space-y-2">
                     {filteredTeams.map((team: TeamWithPlayer) => (
@@ -236,5 +236,3 @@ export default function ParticipantsPage() {
     </div>
   );
 }
-
-    
