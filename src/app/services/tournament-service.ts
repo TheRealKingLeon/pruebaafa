@@ -13,7 +13,7 @@ import type {
   TournamentRules,
 } from '@/types';
 import { loadTournamentRulesAction } from '../admin/tournament-settings/actions';
-import { getPlayoffFixturesAction } from '../admin/playoffs/actions'; // Import the centralized action
+import { getPlayoffFixturesAction } from '../admin/playoffs/actions';
 
 // Helper to fetch team details in bulk
 async function getTeamsDetailsMap(teamIds: string[]): Promise<Map<string, Team>> {
@@ -64,7 +64,6 @@ function convertGroupTimestamps(groupData: any): Group {
   if (data.updatedAt instanceof Timestamp) {
     data.updatedAt = data.updatedAt.toDate().toISOString();
   }
-  // teamIds and other fields are preserved
   return data as Group;
 }
 
@@ -75,7 +74,6 @@ async function calculateStandings(
   rules: TournamentRules | null
 ): Promise<StandingEntry[]> {
   if (!rules) {
-    // Fallback default rules if tournamentRules are not loaded or available
     console.warn(`[calculateStandings] Tournament rules not available for group ${groupId}, using fallback default rules.`);
     rules = {
       pointsForWin: 3,
@@ -85,7 +83,7 @@ async function calculateStandings(
       tiebreakers: [
         { id: 'goalDifference', name: 'Goal Difference', priority: 1, enabled: true },
         { id: 'goalsFor', name: 'Goals For', priority: 2, enabled: true },
-      ] // Basic default tiebreakers
+      ]
     };
   }
 
@@ -174,11 +172,8 @@ async function calculateStandings(
             case 'matchesWon':
                 if (b.won !== a.won) return b.won - a.won;
                 break;
-            // Add other tiebreaker criteria here as needed, e.g., directResult
-            // directResult would require fetching specific matches between tied teams
         }
     }
-    // Fallback to alphabetical by team name if all tiebreakers are equal
     return a.team.name.localeCompare(b.team.name);
   });
 
@@ -197,7 +192,7 @@ export async function getTournamentCompetitionData(): Promise<{
     return { 
       groupsWithStandings: [], 
       playoffFixtures: [], 
-      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` 
     };
   }
 
@@ -228,19 +223,25 @@ export async function getTournamentCompetitionData(): Promise<{
       });
     }
 
-    // Fetch playoff fixtures using the centralized action
     const playoffResult = await getPlayoffFixturesAction();
     let resolvedPlayoffFixtures: PlayoffFixture[] = [];
+    let playoffError: string | undefined = undefined;
 
     if (playoffResult.error) {
         console.warn("Error fetching playoff fixtures for getTournamentCompetitionData. Error:", playoffResult.error);
-        // Optionally, you could pass this error up or decide how to handle it.
-        // For now, competition page will show empty playoffs if this fails.
+        playoffError = playoffResult.error; // Capture playoff specific error
     } else {
-        resolvedPlayoffFixtures = playoffResult.fixtures; // The action already enriches with team names/logos
+        resolvedPlayoffFixtures = playoffResult.fixtures;
     }
 
-    return { groupsWithStandings, playoffFixtures: resolvedPlayoffFixtures };
+    // If there was a playoff error, include it in the main error message if no other error exists
+    let mainError = playoffError;
+    if (playoffError && groupsWithStandings.length === 0) { // Example: combine if standings also failed
+        mainError = `Error en playoffs: ${playoffError}. Error en grupos no detectado o grupos vacíos.`
+    }
+
+
+    return { groupsWithStandings, playoffFixtures: resolvedPlayoffFixtures, error: mainError };
 
   } catch (error) {
     console.error("Error fetching tournament competition data:", error);
@@ -249,7 +250,7 @@ export async function getTournamentCompetitionData(): Promise<{
     return { 
         groupsWithStandings: [], 
         playoffFixtures: [], 
-        error: `Error obteniendo datos de competición: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+        error: `Error obteniendo datos de competición: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.initializationErrorDetected, configUsed: currentDebugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: currentDebugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 }
@@ -266,86 +267,35 @@ export async function getTournamentHomePageData(): Promise<{
     return { 
       upcomingLiveMatches: [], 
       groupsWithStandings: [], 
-      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` 
     };
   }
 
   try {
     const now = new Date(); 
 
-    const liveQuery = query(
-      collection(db, "matches"),
-      where("status", "==", "live"),
-      limit(5)
-    );
+    const liveQuery = query(collection(db, "matches"), where("status", "==", "live"), limit(5));
+    const upcomingQuery = query(collection(db, "matches"), where("status", "==", "upcoming"), limit(20));
+    const pendingDateQuery = query(collection(db, "matches"), where("status", "==", "pending_date"), limit(10));
 
-    const upcomingQuery = query(
-      collection(db, "matches"),
-      where("status", "==", "upcoming"),
-      // No date filter here, sort and filter client-side or after fetching if needed
-      limit(20) 
-    );
-    
-    const pendingDateQuery = query(
-      collection(db, "matches"),
-      where("status", "==", "pending_date"),
-      limit(10)
-    );
-
-    const promiseResults = await Promise.all([
+    const [liveSnapshot, upcomingSnapshot, pendingDateSnapshot] = await Promise.all([
         getDocs(liveQuery),
         getDocs(upcomingQuery),
         getDocs(pendingDateQuery),
     ]);
     
-    const liveSnapshot = promiseResults[0];
-    let rawUpcomingMatchesDocs = promiseResults[1].docs;
-    const pendingDateSnapshot = promiseResults[2].docs;
-    
     const rawLiveMatches = liveSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    // Sorting for live matches by date (if available)
-    rawLiveMatches.sort((a, b) => { 
-      if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-      if (a.date) return -1; // Matches with dates first
-      if (b.date) return 1;
-      return 0; // Keep original order if no dates
-    });
-
-    // Filter upcoming matches to ensure they are truly in the future, then sort by date
-    let rawUpcomingMatches = rawUpcomingMatchesDocs
-        .map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }))
-        .filter(match => match.date && new Date(match.date as string) >= now); // Filter for future dates
-
-    rawUpcomingMatches.sort((a, b) => { // Sort valid upcoming matches by date
-        if (a.date && b.date) return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-        // Should not happen due to filter, but good practice
-        if (a.date) return -1; 
-        if (b.date) return 1;
-        return 0;
-    });
-
-    const rawPendingDateMatches = pendingDateSnapshot.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
-    // Sorting for pending_date matches: by groupName, then matchday
-    rawPendingDateMatches.sort((a, b) => { 
-        const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
-        if (groupCompare !== 0) return groupCompare;
-        return (a.matchday || 0) - (b.matchday || 0);
-    });
-
-    // Combine matches: live first, then upcoming (future dated), then pending_date
-    // Use a Map to avoid duplicates if a match somehow appeared in multiple queries (unlikely with current logic)
+    const rawUpcomingMatches = upcomingSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    const rawPendingDateMatches = pendingDateSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
+    
     const matchesMap = new Map<string, ReturnType<typeof convertMatchTimestamps>>();
     
-    rawLiveMatches.forEach(m => matchesMap.set(m.id, m));
-    rawUpcomingMatches.forEach(m => { // These are already future-dated and sorted
-        if (!matchesMap.has(m.id)) matchesMap.set(m.id, m);
-    });
-    rawPendingDateMatches.forEach(m => { // These are sorted by group/matchday
-      if (!matchesMap.has(m.id)) matchesMap.set(m.id, m);
+    [...rawLiveMatches, ...rawUpcomingMatches, ...rawPendingDateMatches].forEach(m => {
+        if (!matchesMap.has(m.id)) { // Ensure unique matches
+            matchesMap.set(m.id, m);
+        }
     });
 
-    // The order of insertion into the map and then spreading preserves a general priority
-    // To achieve specific multi-level sort for carousel: live > upcoming > pending_date, then group, then matchday
     let combinedMatches = Array.from(matchesMap.values());
 
     const getStatusPriority = (status: Match['status']): number => {
@@ -353,7 +303,7 @@ export async function getTournamentHomePageData(): Promise<{
         case 'live': return 1;
         case 'upcoming': return 2;
         case 'pending_date': return 3;
-        case 'completed': return 4; // Should not be in this list
+        case 'completed': return 4; 
         default: return 5;
       }
     };
@@ -361,35 +311,37 @@ export async function getTournamentHomePageData(): Promise<{
     combinedMatches.sort((a, b) => {
       const priorityA = getStatusPriority(a.status);
       const priorityB = getStatusPriority(b.status);
+      if (priorityA !== priorityB) return priorityA - priorityB;
 
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-
-      // For 'live' and 'upcoming', sort by actual date if available
+      // For 'live' and 'upcoming' with actual dates, sort by date first
       if ((a.status === 'live' || a.status === 'upcoming') && (b.status === 'live' || b.status === 'upcoming')) {
-        if (a.date && b.date) {
-            const dateComparison = new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
-            if (dateComparison !== 0) return dateComparison;
-        } else if (a.date) {
-            return -1; // a has date, b doesn't
-        } else if (b.date) {
-            return 1;  // b has date, a doesn't
+        const aHasDate = !!a.date;
+        const bHasDate = !!b.date;
+        if (aHasDate && !bHasDate) return -1;
+        if (!aHasDate && bHasDate) return 1;
+        if (aHasDate && bHasDate) {
+          const dateComparison = new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+          if (dateComparison !== 0) return dateComparison;
         }
-        // If dates are same or both null, fall through to group/matchday
       }
       
-      // Fallback/secondary sort: groupName then matchday
+      // Then sort by Matchday (Fecha)
+      const matchdayA = a.matchday ?? Number.MAX_SAFE_INTEGER; // Treat null/undefined as last
+      const matchdayB = b.matchday ?? Number.MAX_SAFE_INTEGER;
+      if (matchdayA !== matchdayB) return matchdayA - matchdayB;
+
+      // Then sort by Group Name (Zona)
       const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
       if (groupCompare !== 0) return groupCompare;
       
-      return (a.matchday || 0) - (b.matchday || 0);
+      // Final tie-breaker by team name (mostly for 'pending_date' or identical upcoming without distinct times)
+      const team1NameA = a.team1?.name || a.team1Id || '';
+      const team1NameB = b.team1?.name || b.team1Id || '';
+      return team1NameA.localeCompare(team1NameB);
     });
     
-    // Limit the total number of matches for the carousel
     const limitedMatches = combinedMatches.slice(0, 10);
 
-    // Populate team details for the selected matches
     const matchTeamIds = new Set<string>();
     limitedMatches.forEach(m => {
       if (m.team1Id) matchTeamIds.add(m.team1Id);
@@ -401,18 +353,21 @@ export async function getTournamentHomePageData(): Promise<{
       ...m, 
       team1: m.team1Id ? teamsMapForMatches.get(m.team1Id) : undefined,
       team2: m.team2Id ? teamsMapForMatches.get(m.team2Id) : undefined,
-    })).filter(m => m.team1 && m.team2) as Match[]; // Ensure both teams are populated
+    })).filter(m => m.team1 && m.team2) as Match[];
 
 
-    // For the home page, we call getTournamentCompetitionData to get groups with standings
     const competitionDataResult = await getTournamentCompetitionData();
-    if (competitionDataResult.error && !competitionDataResult.groupsWithStandings.length) { 
+    // Propagate error from competitionDataResult if it exists and groups are empty
+    let homePageError = competitionDataResult.error; 
+    if (competitionDataResult.error && competitionDataResult.groupsWithStandings.length === 0) {
         console.warn("Error fetching groups for home page via getTournamentCompetitionData. Error:", competitionDataResult.error);
-        // If competitionData also had an error getting groups, reflect that
-        return { upcomingLiveMatches, groupsWithStandings: [], error: competitionDataResult.error};
     }
     
-    return { upcomingLiveMatches, groupsWithStandings: competitionDataResult.groupsWithStandings };
+    return { 
+        upcomingLiveMatches, 
+        groupsWithStandings: competitionDataResult.groupsWithStandings,
+        error: homePageError 
+    };
 
   } catch (error) {
     console.error("Error fetching tournament home page data:", error);
@@ -421,7 +376,7 @@ export async function getTournamentHomePageData(): Promise<{
     return { 
         upcomingLiveMatches: [], 
         groupsWithStandings: [], 
-        error: `Error obteniendo datos de página principal: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+        error: `Error obteniendo datos de página principal: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.initializationErrorDetected, configUsed: currentDebugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: currentDebugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 }
@@ -438,12 +393,12 @@ export async function getTournamentResultsData(): Promise<{
     return { 
       allMatches: [], 
       groupList: [], 
-      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.error, configUsed: debugInfo.configUsed, envKeys: debugInfo.envKeys }, null, 2)}` 
+      error: `Servicio no disponible: Fallo al conectar con la base de datos. Debug Info: ${JSON.stringify({ error: debugInfo.initializationErrorDetected, configUsed: debugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: debugInfo.runtimeEnvVarStatus }, null, 2)}` 
     };
   }
 
   try {
-    const matchesQuery = query(collection(db, "matches"));
+    const matchesQuery = query(collection(db, "matches")); // Consider adding orderBy here if needed for default sort
     const matchesSnapshot = await getDocs(matchesQuery);
     const rawMatches = matchesSnapshot.docs.map(doc => convertMatchTimestamps({ id: doc.id, ...doc.data() }));
 
@@ -460,7 +415,8 @@ export async function getTournamentResultsData(): Promise<{
       team2: m.team2Id ? teamsMap.get(m.team2Id) : undefined,
     })).filter(m => m.team1 && m.team2) as Match[];
 
-     allMatchesWithTeams.sort((a, b) => {
+    // Default sort for results page, can be overridden client-side if necessary
+    allMatchesWithTeams.sort((a, b) => {
         const aHasDate = !!a.date;
         const bHasDate = !!b.date;
 
@@ -468,14 +424,14 @@ export async function getTournamentResultsData(): Promise<{
         if (!aHasDate && bHasDate) return 1;  
         
         if (aHasDate && bHasDate) {
-          const dateComparison = new Date(a.date!).getTime() - new Date(b.date!).getTime();
+          const dateComparison = new Date(b.date!).getTime() - new Date(a.date!).getTime(); // Descending for most recent completed
           if (dateComparison !== 0) return dateComparison; 
         }
         
         const groupCompare = (a.groupName || '').localeCompare(b.groupName || '');
         if (groupCompare !== 0) return groupCompare;
         
-        return (a.matchday || 0) - (b.matchday || 0);
+        return (b.matchday || 0) - (a.matchday || 0); // Descending matchday
     });
 
 
@@ -499,7 +455,9 @@ export async function getTournamentResultsData(): Promise<{
     return { 
         allMatches: [], 
         groupList: [], 
-        error: `Error obteniendo datos de resultados: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.error, configUsed: currentDebugInfo.configUsed, envKeys: currentDebugInfo.envKeys }, null, 2)}`
+        error: `Error obteniendo datos de resultados: ${message}. Debug Info: ${JSON.stringify({ error: currentDebugInfo.initializationErrorDetected, configUsed: currentDebugInfo.configUsedAtModuleLoad, runtimeEnvVarStatus: currentDebugInfo.runtimeEnvVarStatus }, null, 2)}`
     };
   }
 }
+
+    
