@@ -11,7 +11,7 @@ interface PlayerDetailCardProps {
 }
 
 export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetailCardProps) {
-  if (!selectedClubName && !player) { // Show initial prompt if no club is even selected
+  if (!clubName && !player) { // Show initial prompt if no club is even selected
     return (
       <Card className="sticky top-20 shadow-xl h-fit">
         <CardContent className="p-8 text-center">
@@ -25,21 +25,21 @@ export function PlayerDetailCard({ player, clubName, clubLogoUrl }: PlayerDetail
     );
   }
   
-  if (!player && selectedClubName) { // Show if a club is selected but has no player
+  if (!player && clubName) { // Show if a club is selected but has no player
      return (
       <Card className="sticky top-20 shadow-xl h-fit animate-fade-in overflow-hidden">
         <CardContent className="p-6 text-center">
            {clubLogoUrl && (
             <Image
                 src={clubLogoUrl}
-                alt={`${selectedClubName} logo`}
+                alt={`${clubName} logo`}
                 width={64}
                 height={64}
                 className="rounded-full object-contain mx-auto mb-4 border"
-                data-ai-hint={selectedClubName?.toLowerCase().includes("river") || selectedClubName?.toLowerCase().includes("boca") ? "football club" : "team logo"}
+                data-ai-hint={clubName?.toLowerCase().includes("river") || clubName?.toLowerCase().includes("boca") ? "football club" : "team logo"}
               />
            )}
-          <CardTitle className="font-headline text-xl text-primary mb-2">{selectedClubName}</CardTitle>
+          <CardTitle className="font-headline text-xl text-primary mb-2">{clubName}</CardTitle>
           <p className="text-muted-foreground">Este club aún no tiene un jugador asignado.</p>
           <p className="text-sm text-muted-foreground mt-1">Puedes asignarle uno desde el panel de administración.</p>
         </CardContent>
