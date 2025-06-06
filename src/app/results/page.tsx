@@ -124,7 +124,7 @@ export default function ResultsPage() {
                   Selecciona una Zona
                 </h3>
                   <Tabs defaultValue={defaultCompletedZoneIdForGroupSelection} className="w-full">
-                    <TabsList className="flex flex-wrap w-full gap-2 mb-4">
+                    <TabsList className="flex w-full gap-2 mb-4 overflow-x-auto whitespace-nowrap">
                       {groupsWithCompletedMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-completed-group-trigger`} value={`${group.id}-completed`} className="text-xs sm:text-sm py-2">
                           {group.name}
@@ -217,7 +217,7 @@ export default function ResultsPage() {
                   Selecciona una Zona
                 </h3>
                   <Tabs defaultValue={defaultUpcomingZoneId} className="w-full">
-                    <TabsList className="flex flex-wrap w-full gap-2 mb-4">
+                    <TabsList className="flex w-full gap-2 mb-4 overflow-x-auto whitespace-nowrap">
                       {groupsWithUpcomingMatches.map((group) => (
                         <TabsTrigger key={`${group.id}-upcoming-trigger`} value={group.id} className="text-xs sm:text-sm py-2">
                           {group.name}
@@ -259,3 +259,4 @@ export default function ResultsPage() {
     </div>
   );
 }
+

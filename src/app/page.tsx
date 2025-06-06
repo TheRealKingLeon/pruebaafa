@@ -212,7 +212,7 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="p-0">
                 <Tabs defaultValue={defaultGroupId} className="w-full">
-                  <TabsList className="flex flex-wrap w-full gap-1 rounded-none border-b border-border bg-muted/30 p-1">
+                  <TabsList className="flex w-full gap-1 rounded-none border-b border-border bg-muted/30 p-1 overflow-x-auto whitespace-nowrap">
                     {displayableGroups.map((group: GroupType) => (
                       <TabsTrigger
                         key={group.id}
@@ -304,3 +304,4 @@ export default function HomePage() {
     </div>
   );
 }
+

@@ -121,7 +121,7 @@ export default function CompetitionPage() {
 
           {displayableGroupsForStandings.length > 0 ? (
             <Tabs defaultValue={defaultGroupStageZoneId} className="w-full">
-              <TabsList className="flex flex-wrap w-full gap-1 rounded-md border-border bg-muted/30 mb-6 p-1">
+              <TabsList className="flex w-full gap-1 rounded-md border-border bg-muted/30 mb-6 p-1 overflow-x-auto whitespace-nowrap">
                 {displayableGroupsForStandings.map((group: Group) => (
                   <TabsTrigger
                     key={group.id}
@@ -208,7 +208,7 @@ export default function CompetitionPage() {
           </p>
           {allPlayoffFixtures && allPlayoffFixtures.length > 0 && displayableZonesForPlayoffs.length > 0 ? (
             <Tabs defaultValue={defaultPlayoffZoneId} className="w-full">
-              <TabsList className="flex flex-wrap w-full gap-1 mb-6 rounded-md border bg-muted/30 p-1">
+              <TabsList className="flex w-full gap-1 mb-6 rounded-md border bg-muted/30 p-1 overflow-x-auto whitespace-nowrap">
                   {displayableZonesForPlayoffs.map((group) => (
                     <TabsTrigger
                       key={group.zoneId}
@@ -323,3 +323,4 @@ export default function CompetitionPage() {
     </div>
   );
 }
+
